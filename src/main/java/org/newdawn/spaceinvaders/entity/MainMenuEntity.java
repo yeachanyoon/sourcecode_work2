@@ -1,12 +1,8 @@
 package org.newdawn.spaceinvaders.entity;
 
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.FontMetrics;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-
 import org.newdawn.spaceinvaders.Game;
+
+import java.awt.*;
 
 public class MainMenuEntity extends Entity {
     private final Game game;
@@ -19,8 +15,12 @@ public class MainMenuEntity extends Entity {
     }
 
     public void move(long delta) { /* 메뉴는 이동 없음 */ }
-    public void doLogic() { }
-    public void collidedWith(Entity other) { }
+
+    public void doLogic() {
+    }
+
+    public void collidedWith(Entity other) {
+    }
 
     // ✅ 부모와 동일 시그니처로 수정: Graphics
     public void draw(Graphics g0) {
@@ -31,8 +31,7 @@ public class MainMenuEntity extends Entity {
         g.setColor(new Color(0, 0, 0, 170));
         g.fillRect(0, 0, 800, 600);
 
-        // 타이틀
-        g.setColor(Color.WHITE);
+        // 타이틀 g.setColor(Color.WHITE);
         g.setFont(new Font("SansSerif", Font.BOLD, 36));
         String title = "SPACE INVADERS";
         FontMetrics fm = g.getFontMetrics();
@@ -48,4 +47,5 @@ public class MainMenuEntity extends Entity {
 
     public void setVisible(boolean visible) { this.visible = visible; }
     public boolean isVisible() { return visible; }
+
 }

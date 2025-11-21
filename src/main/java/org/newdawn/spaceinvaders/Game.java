@@ -22,22 +22,9 @@ import java.util.Random;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
-import org.newdawn.spaceinvaders.entity.AlienEntity;
-import org.newdawn.spaceinvaders.entity.AlienShotEntity;
-import org.newdawn.spaceinvaders.entity.AsteroidEntity;
-import org.newdawn.spaceinvaders.entity.BlackHoleEntity;
-import org.newdawn.spaceinvaders.entity.BombEntity;
-import org.newdawn.spaceinvaders.entity.BossEntity;
-import org.newdawn.spaceinvaders.entity.Entity;
-import org.newdawn.spaceinvaders.entity.LaserEntity;
-import org.newdawn.spaceinvaders.entity.PlayScoreEntity;
-import org.newdawn.spaceinvaders.entity.RankingScoreEntity;
-import org.newdawn.spaceinvaders.entity.ShipEntity;
-import org.newdawn.spaceinvaders.entity.ShotEntity;
-import org.newdawn.spaceinvaders.Sprite;
-import org.newdawn.spaceinvaders.SpriteStore;
+import org.newdawn.spaceinvaders.entity.*;
 
-public class Game extends Canvas {
+public class Game extends Canvas implements GameContext {
 	public static final int VIRTUAL_WIDTH  = 800;
 	public static final int VIRTUAL_HEIGHT = 600;
 
@@ -97,12 +84,16 @@ public class Game extends Canvas {
 	private final MenuButton resetInSettingsBtn = new MenuButton("초기화");
 	private boolean showingSettings = false;
 
-	private boolean showHomeOnMenu   = false;
+	private boolean showHomeOnMenu = false;
 	private boolean showingChallenge = false;
 	private boolean showingLevelSelect = false;
-	private boolean showingShipSelect  = false;
-	private boolean showingReinforce   = false;
-	private boolean showingShop        = false;
+	private boolean showingShipSelect = false;
+	private boolean showingReinforce = false;
+	private boolean showingShop = false;
+    private Screen currentScreen;
+    private boolean inGame;
+    private SaveManager saveManager = new SaveManager();
+    private SaveState saveData = new SaveState();
 
 	private final MenuButton[] levelButtons = {
 			new MenuButton("Level 1"),
@@ -172,31 +163,6 @@ public class Game extends Canvas {
 	// 랜덤
 	private final Random rng = new Random();
 
-	/* ========================= SAVE / RANK ========================= */
-	private static class SaveState {
-		int  highestUnlockedLevel = 1;
-		boolean achKill10   = false;
-		boolean achClear100 = false;
-		boolean achClear1Min = false;
-
-		int totalKillsOverall = 0;
-		int bestTimeMs = -1;
-		int lastSelectedShipIndex = -1;
-
-		List<RankRow> leaderboard = new ArrayList<>();
-		String playerName = System.getProperty("user.name", "PLAYER");
-
-		// 강화
-		int reinforcePoints = 0;
-		int lvSpeed = 0, lvFireRate = 0, lvShield = 0, lvBomb = 0, lvLaser = 0;
-
-		// 상점
-		int coins = 0;
-		int selectedSkinIndex = 0;
-		String ownedSkinsCsv = "";
-	}
-	private SaveState saveData = new SaveState();
-
 	// 점수 / 랭킹
 	private int score = 0;
 	public static class RankRow { public final String name; public final int score; public RankRow(String n,int s){name=n;score=s;} }
@@ -252,6 +218,8 @@ public class Game extends Canvas {
 	private double levelLaserDrop = 0.06; // 기본 6%
 	private double levelAlienSpeedMul = 0.80; // 기본 0.80
 
+    private final SpawnManager spawnManager = new SpawnManager(this);
+
 	public Game() {
 		container = new JFrame("Space Invaders 102");
 
@@ -293,7 +261,6 @@ public class Game extends Canvas {
 		heartFullSprite  = SpriteStore.get().getSprite("sprites/full_heart.png");
 		heartEmptySprite = SpriteStore.get().getSprite("sprites/empty_heart.png");
 
-		loadSave();
 
 		initEntities();
 
@@ -301,7 +268,12 @@ public class Game extends Canvas {
 		rankingUI   = new RankingScoreEntity(this);
 		entities.add(playScoreUI);
 		entities.add(rankingUI);
+
+        loadSave();
+        applySaveToRuntime();
 	}
+    @Override public int getVirtualWidth() { return VIRTUAL_WIDTH; }
+    @Override public int getVirtualHeight() { return VIRTUAL_HEIGHT; }
 
 	// ====== 스케일/오프셋/좌표 변환 ======
 	private double currentScale() {
@@ -486,14 +458,20 @@ public class Game extends Canvas {
 	public void addEntity(Entity e){ entities.add(e); }
 	public void updateLogic() { for (int i=0;i<entities.size();i++) entities.get(i).doLogic(); }
 	public void removeEntity(Entity entity) { removeList.add(entity); }
+
 	public void loseHeart() { notifyDeath(); }
-	public boolean isPlayerInvincible() { return SystemTimer.getTime() < invulnUntil; }
+    public boolean isPlayerInvincible() { return SystemTimer.getTime() < invulnUntil; }
 	public void playerHit() { notifyDeath(); }
 
-	public int getShipCenterX() {
+    @Override
+    public void onAlienKilledAt(int cx, int cy) { notifyAlienKilledAt(cx, cy); }
+
+    public int getShipCenterX() {
 		if (ship == null) return VIRTUAL_WIDTH / 2;
 		return ship.getX() + ship.getWidth() / 2;
 	}
+
+    public java.util.List<Entity> getEntities() { return entities; }
 
 	public void notifyDeath() {
 		long now = SystemTimer.getTime();
@@ -637,13 +615,17 @@ public class Game extends Canvas {
 	}
 
 	public void onBossDefeated(BossEntity b) {
-		if (boss == b) {
-			bossDefeated = true;
-			addScore(2000);
-			coins += 300;
-			showToast("보스 격파!", 1500);
-		}
+        // 실제 보스 오브젝트인지 확인
+        if (boss == b) {
+            bossDefeated = true;
+            // 원하면 추가 보너스
+            addScore(1000);         // 예시: 보스 보너스
+            coins += 100;           // 예시: 코인 보너스
+            showToast("보스를 처치했습니다!", 2000);
+        }
 	}
+    @Override
+    public void onPlayerHit() { playerHit(); }
 
 	/* ===== 발사/아이템 ===== */
 	public void tryToFire() {
@@ -665,18 +647,39 @@ public class Game extends Canvas {
 		}
 	}
 
-	private void tryToFireBomb() {
-		if (bombCount <= 0) { showToast("폭탄이 없습니다!", 800); return; }
-		if (System.currentTimeMillis() - lastBombFire < bombFireInterval) return;
-		lastBombFire = System.currentTimeMillis();
+    /** B 키로 폭탄 발사 시 호출 */
+    private void tryToFireBomb() {
+        // 1) 보유 수량 체크
+        if (bombCount <= 0) {
+            showToast("폭탄이 없습니다!", 800);
+            return;
+        }
 
-		int bx = (int) (ship.getX() + ship.getWidth()/2.0 - 8);
-		int by = (int) (ship.getY() - 20);
-		BombEntity proj = new BombEntity(this, bx, by);
-		proj.setMode(BombEntity.Mode.PROJECTILE);
-		entities.add(proj);
-		bombCount--;
-	}
+        // 2) 쿨타임 체크
+        long now = System.currentTimeMillis();
+        if (now - lastBombFire < bombFireInterval) {
+            return;
+        }
+        lastBombFire = now;
+
+        // 3) 배가 없으면 발사 불가
+        if (ship == null) {
+            return;
+        }
+
+        // 4) 배 중앙 약간 위에서 발사체 생성
+        int bx = (int) (ship.getX() + ship.getWidth() / 2.0 - 8);
+        int by = (int) (ship.getY() - 20);
+
+        // Game 은 GameContext 를 구현하고 있다고 가정
+        BombEntity proj = new BombEntity(this, bx, by);
+        proj.setMode(BombEntity.Mode.PROJECTILE);
+        entities.add(proj);
+
+        // 5) 보유 폭탄 수 감소
+        bombCount--;
+    }
+
 
 	private void tryToFireLaser() {
 		if (laserCount <= 0) { showToast("레이저가 없습니다!", 800); return; }
@@ -831,17 +834,25 @@ public class Game extends Canvas {
 		g.drawString("BOSS", x, y-6);
 	}
 
-	private void showToast(String msg, long durationMs) { toastText = msg; toastUntil = SystemTimer.getTime() + durationMs; }
 
 	private void drawToast(Graphics2D g) {
-		if (toastText == null || SystemTimer.getTime() > toastUntil) return;
-		g.setFont(new Font("SansSerif", Font.BOLD, 16));
-		FontMetrics fm = g.getFontMetrics();
-		int textW = fm.stringWidth(toastText), textH = fm.getHeight();
-		int x = (VIRTUAL_WIDTH - textW) / 2, y = VIRTUAL_HEIGHT - 60;
-		g.setColor(new Color(0,0,0,150));
-		g.fillRoundRect(x - 10, y - textH, textW + 20, textH + 10, 10, 10);
-		g.setColor(Color.white); g.drawString(toastText, x, y);
+        // 문자 자체로 표시 여부 판단
+        if (toastText == null || SystemTimer.getTime() > toastUntil) {
+            return;
+        }
+
+        g.setFont(new Font("SansSerif", Font.BOLD, 16));
+        FontMetrics fm = g.getFontMetrics();
+        int textW = fm.stringWidth(toastText);
+        int textH = fm.getHeight();
+        int x = (VIRTUAL_WIDTH - textW) / 2;
+        int y = VIRTUAL_HEIGHT - 60;
+
+        g.setColor(new Color(0, 0, 0, 150));
+        g.fillRoundRect(x - 10, y - textH, textW + 20, textH + 10, 10, 10);
+
+        g.setColor(Color.white);
+        g.drawString(toastText, x, y);
 	}
 
 	private void drawCenteredString(Graphics2D g, String text, int width, int y) {
@@ -1077,6 +1088,11 @@ public class Game extends Canvas {
 	}
 
 	private void handleMouseClick(int mx, int my) {
+
+        if (!inGame && currentScreen != null) {
+            currentScreen.onMouseClick(mx, my);
+        }
+
 		if (showingChallenge) {
 			layoutBackButton();
 			if (backButton.contains(mx, my)) { showingChallenge = false; }
@@ -1161,144 +1177,258 @@ public class Game extends Canvas {
 		}
 	}
 
-	public void gameLoop() {
-		long lastLoopTime = SystemTimer.getTime();
-		while (gameRunning) {
-			long delta = SystemTimer.getTime() - lastLoopTime;
-			lastLoopTime = SystemTimer.getTime();
+    public void gameLoop() {
+        long lastLoopTime = SystemTimer.getTime();
+        while (gameRunning) {
+            long delta = SystemTimer.getTime() - lastLoopTime;
+            lastLoopTime = SystemTimer.getTime();
 
-			lastFpsTime += delta; fps++;
-			if (lastFpsTime >= 1000) { container.setTitle(windowTitle + " (FPS: " + fps + ")"); lastFpsTime = 0; fps = 0; }
+            updateFps(delta);
 
-			Graphics2D g = (Graphics2D) strategy.getDrawGraphics();
+            Graphics2D g = (Graphics2D) strategy.getDrawGraphics();
+            prepareBackBuffer(g);
 
-			// 전체 물리 화면을 검정으로
-			g.setColor(Color.black);
-			g.fillRect(0, 0, getWidth(), getHeight());
+            double s = currentScale();
+            int ox = offsetXForScale(s);
+            int oy = offsetYForScale(s);
+            Graphics2D vg = createVirtualGraphics(g, s, ox, oy);
 
-			// 가상 화면 스케일/오프셋
-			double s = currentScale();
-			int ox = offsetXForScale(s);
-			int oy = offsetYForScale(s);
+            if (!waitingForKeyPress) {
+                updateEntities(delta);
+            }
 
-			Graphics2D vg = (Graphics2D) g.create();
-			vg.translate(ox, oy);
-			vg.scale(s, s);
+            renderEntities(vg);
+            renderHudAndMenus(vg);
+            postRenderLogic(delta);
 
-			vg.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            vg.dispose();
+            g.dispose();
+            strategy.show();
 
-			// 가상 화면 클리어
-			vg.setColor(Color.black);
-			vg.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
+            processPlayerInput(delta);
+            SystemTimer.sleep(10);
+        }
+    }
 
-			if (!waitingForKeyPress) {
-				for (int i=0;i<entities.size();i++) entities.get(i).move(delta);
-			}
+    /** FPS 계산 및 윈도우 타이틀 갱신 */
+    private void updateFps(long delta) {
+        lastFpsTime += delta;
+        fps++;
 
-			// 렌더 순서: 블랙홀 → 일반 엔티티(레이저BEAM 제외) → 레이저BEAM(맨 앞)
-			for (int i=0;i<entities.size();i++)
-				if (entities.get(i) instanceof BlackHoleEntity) entities.get(i).draw(vg);
+        if (lastFpsTime >= 1000) {
+            container.setTitle(windowTitle + " (FPS: " + fps + ")");
+            lastFpsTime = 0;
+            fps = 0;
+        }
+    }
 
-			for (int i=0;i<entities.size();i++) {
-				Entity e = entities.get(i);
-				if (e instanceof BlackHoleEntity) continue;
-				if (e instanceof LaserEntity && ((LaserEntity)e).isBeam()) continue;
-				e.draw(vg);
-			}
+    /** 실제 창 크기 기준 전체 백버퍼를 초기화(검정색) */
+    private void prepareBackBuffer(Graphics2D g) {
+        g.setColor(Color.black);
+        g.fillRect(0, 0, getWidth(), getHeight());
+    }
 
-			for (int i=0;i<entities.size();i++) {
-				Entity e = entities.get(i);
-				if (e instanceof LaserEntity && ((LaserEntity)e).isBeam()) e.draw(vg);
-			}
+    /**
+     * 가상 해상도(VIRTUAL_WIDTH x VIRTUAL_HEIGHT)에 맞춘 Graphics2D 생성
+     * - 스케일/오프셋 적용
+     * - 가상 화면 영역을 검정으로 클리어
+     */
+    private Graphics2D createVirtualGraphics(Graphics2D g, double scale, int ox, int oy) {
+        Graphics2D vg = (Graphics2D) g.create();
+        vg.translate(ox, oy);
+        vg.scale(scale, scale);
 
-			if (!waitingForKeyPress) {
-				drawLives(vg);
-				drawBossHP(vg);
-			}
+        vg.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
+                RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-			if (waitingForKeyPress) {
-				if (showingLevelSelect) {
-					drawLevelSelectScreen(vg);
-				} else if (showingShipSelect) {
-					drawShipSelectScreen(vg);
-				} else if (showingChallenge) {
-					vg.setColor(new Color(0, 0, 0, 200));
-					vg.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
-					vg.setColor(Color.WHITE);
-					vg.setFont(new Font("SansSerif", Font.BOLD, 28));
-					String t = "도전 과제";
-					FontMetrics fm2 = vg.getFontMetrics();
-					int cx = (VIRTUAL_WIDTH - fm2.stringWidth(t)) / 2;
-					vg.drawString(t, cx, 120);
+        // 가상 화면 클리어
+        vg.setColor(Color.black);
+        vg.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
 
-					vg.setFont(new Font("SansSerif", Font.PLAIN, 18));
-					int y = 180;
-					vg.drawString("• 적 10마리 처치"      + (achKill10   ? " ✅" : ""), 220, y); y += 30;
-					vg.drawString("• 100발 이하로 클리어" + (achClear100 ? " ✅" : ""), 220, y); y += 30;
-					vg.drawString("• 1분 안에 클리어"    + (achClear1Min? " ✅" : ""), 220, y);
+        return vg;
+    }
 
-					layoutBackButton(); backButton.draw(vg, false);
-				} else if (showingReinforce) {
-					drawReinforceScreen(vg);
-				} else if (showingShop) {
-					drawShopScreen(vg);
-				} else {
-					drawMainMenuOverlay(vg);
-				}
-			}
+    /** 모든 엔티티를 delta(ms)에 맞춰 이동 */
+    private void updateEntities(long delta) {
+        for (int i = 0; i < entities.size(); i++) {
+            entities.get(i).move(delta);
+        }
+    }
 
-			drawToast(vg);
+    /**
+     * 엔티티 렌더 순서:
+     * 1) 블랙홀
+     * 2) 일반 엔티티 (레이저 BEAM 제외)
+     * 3) 레이저 BEAM (맨 앞)
+     */
+    private void renderEntities(Graphics2D vg) {
+        // 1) 블랙홀 먼저
+        for (int i = 0; i < entities.size(); i++) {
+            Entity e = entities.get(i);
+            if (e instanceof BlackHoleEntity) {
+                e.draw(vg);
+            }
+        }
 
-			if (!waitingForKeyPress) {
-				tryAlienFire();
-				long now = SystemTimer.getTime();
-				if (nextAsteroidSpawn == 0) nextAsteroidSpawn = now + asteroidInterval;
-				else if (now >= nextAsteroidSpawn) { spawnAsteroid(); nextAsteroidSpawn = now + asteroidInterval; }
+        // 2) 블랙홀 / 레이저 BEAM 제외한 나머지
+        for (int i = 0; i < entities.size(); i++) {
+            Entity e = entities.get(i);
+            if (e instanceof BlackHoleEntity) continue;
+            if (e instanceof LaserEntity && ((LaserEntity) e).isBeam()) continue;
+            e.draw(vg);
+        }
 
-				if (lastBlackHoleSpawn == 0) lastBlackHoleSpawn = now + blackHoleInterval;
-				else if (now >= lastBlackHoleSpawn) { spawnBlackHole(); lastBlackHoleSpawn = now + blackHoleInterval; }
-			}
+        // 3) 레이저 BEAM만 따로 맨 앞에
+        for (int i = 0; i < entities.size(); i++) {
+            Entity e = entities.get(i);
+            if (e instanceof LaserEntity && ((LaserEntity) e).isBeam()) {
+                e.draw(vg);
+            }
+        }
+    }
 
-			if (!waitingForKeyPress) {
-				for (int p=0;p<entities.size();p++) {
-					for (int s2=p+1;s2<entities.size();s2++) {
-						Entity me = entities.get(p), him = entities.get(s2);
-						if (me.collidesWith(him)) { me.collidedWith(him); him.collidedWith(me); }
-					}
-				}
-			}
+    /**
+     * HUD(플레이 중) 또는 메뉴/도전과제/강화/상점(대기 상태) 렌더
+     * + 토스트 메시지
+     */
+    private void renderHudAndMenus(Graphics2D vg) {
+        if (!waitingForKeyPress) {
+            // 실제 플레이 중일 때: HUD만 표시
+            drawLives(vg);
+            drawBossHP(vg);
+        } else {
+            // 메뉴/도전과제/강화/상점/선택 화면
+            if (showingLevelSelect) {
+                drawLevelSelectScreen(vg);
+            } else if (showingShipSelect) {
+                drawShipSelectScreen(vg);
+            } else if (showingChallenge) {
+                // 기존 도전과제 렌더 코드 유지
+                vg.setColor(new Color(0, 0, 0, 200));
+                vg.fillRect(0, 0, VIRTUAL_WIDTH, VIRTUAL_HEIGHT);
 
-			entities.removeAll(removeList); removeList.clear();
+                vg.setColor(Color.WHITE);
+                vg.setFont(new Font("SansSerif", Font.BOLD, 28));
+                String t = "도전 과제";
+                FontMetrics fm2 = vg.getFontMetrics();
+                int cx = (VIRTUAL_WIDTH - fm2.stringWidth(t)) / 2;
+                vg.drawString(t, cx, 120);
 
-			if (!waitingForKeyPress) checkWinCondition();
+                vg.setFont(new Font("SansSerif", Font.PLAIN, 18));
+                int y = 180;
+                vg.drawString("• 적 10마리 처치"      + (achKill10    ? " ✅" : ""), 220, y); y += 30;
+                vg.drawString("• 100발 이하로 클리어" + (achClear100  ? " ✅" : ""), 220, y); y += 30;
+                vg.drawString("• 1분 안에 클리어"     + (achClear1Min ? " ✅" : ""), 220, y);
 
-			if (logicRequiredThisLoop) { for (int i=0;i<entities.size();i++) entities.get(i).doLogic(); logicRequiredThisLoop=false; }
+                layoutBackButton();
+                backButton.draw(vg, false);
+            } else if (showingReinforce) {
+                drawReinforceScreen(vg);
+            } else if (showingShop) {
+                drawShopScreen(vg);
+            } else {
+                // 기본 메인 메뉴 오버레이
+                drawMainMenuOverlay(vg);
+            }
+        }
 
-			vg.dispose();
-			g.dispose(); strategy.show();
+        // 토스트는 상태와 상관없이 항상 마지막에
+        drawToast(vg);
+    }
 
-			if (ship != null) ship.setHorizontalMovement(0);
-			if (!waitingForKeyPress) {
-				double effSpeed = moveSpeed;
-				if (ship != null) {
-					double cx = ship.getX() + ship.getWidth() / 2.0;
-					double cy = ship.getY() + ship.getHeight() / 2.0;
-					float scale = getBlackHoleSpeedScaleFor(cx, cy);
-					effSpeed *= scale;
-				}
-				if (leftPressed && !rightPressed)      { if (ship != null) ship.setHorizontalMovement(-effSpeed); }
-				else if (rightPressed && !leftPressed) { if (ship != null) ship.setHorizontalMovement(effSpeed); }
+    /**
+     * 렌더 후에 수행되는 게임 로직:
+     * - 적 사격 / 유성·블랙홀 스폰
+     * - 충돌 검사
+     * - 제거 목록 처리
+     * - 승리 조건 체크
+     * - logicRequiredThisLoop 처리
+     */
+    private void postRenderLogic(long delta) {
+        if (!waitingForKeyPress) {
+            long now = SystemTimer.getTime();
 
-				if (firePressed)  tryToFire();
-				if (bombPressed)  tryToFireBomb();
-				if (laserPressed) tryToFireLaser();
-			}
+            // 1) 적 사격 / 유성 / 블랙홀 스폰을 SpawnManager에 위임
+            spawnManager.tryAlienFire(now);
+            spawnManager.spawnAsteroidIfNeeded(now);
+            spawnManager.spawnBlackHoleIfNeeded(now);
 
-			SystemTimer.sleep(10);
-		}
-	}
+            // 2) 충돌 검사
+            for (int p = 0; p < entities.size(); p++) {
+                for (int s2 = p + 1; s2 < entities.size(); s2++) {
+                    Entity me = entities.get(p);
+                    Entity him = entities.get(s2);
+                    if (me.collidesWith(him)) {
+                        me.collidedWith(him);
+                        him.collidedWith(me);
+                    }
+                }
+            }
 
-	/* ===== 입력 ===== */
+            // 3) 승리 조건 체크 (보스 포함)
+            checkWinCondition();   // 또는 여기서 aliveAliens 세서 spawnManager.spawnBossIfNeeded(...
+        }
+
+        // 4) 제거 예정 엔티티 제거
+        if (!removeList.isEmpty()) {
+            entities.removeAll(removeList);
+            removeList.clear();
+        }
+
+        // 5) (원래 있던 경우) logicRequiredThisLoop 처리도 여기서
+        if (logicRequiredThisLoop) {
+            for (int i = 0; i < entities.size(); i++) {
+                entities.get(i).doLogic();
+            }
+            logicRequiredThisLoop = false;
+        }
+    }
+
+    /**
+     * 키 입력 상태 플래그(left/right/fire/bomb/laser)를 바탕으로
+     * ship 이동/공격을 처리
+     */
+    private void processPlayerInput(long delta) {
+        // 배가 없으면 아무것도 안 함
+        if (ship != null) {
+            ship.setHorizontalMovement(0);
+        }
+
+        if (waitingForKeyPress) {
+            // 메뉴/대기 상태에서는 입력으로 배를 움직이지 않음
+            return;
+        }
+
+        double effSpeed = moveSpeed;
+
+        // 블랙홀 감속 적용
+        if (ship != null) {
+            double cx = ship.getX() + ship.getWidth() / 2.0;
+            double cy = ship.getY() + ship.getHeight() / 2.0;
+            float scale = getBlackHoleSpeedScaleFor(cx, cy);
+            effSpeed *= scale;
+        }
+
+        // 좌우 이동
+        if (leftPressed && !rightPressed) {
+            if (ship != null) ship.setHorizontalMovement(-effSpeed);
+        } else if (rightPressed && !leftPressed) {
+            if (ship != null) ship.setHorizontalMovement(effSpeed);
+        }
+
+        // 공격/폭탄/레이저 발사
+        if (firePressed)  {
+            tryToFire();
+        }
+        if (bombPressed)  {
+            tryToFireBomb();
+        }
+        if (laserPressed) {
+            tryToFireLaser();
+        }
+    }
+
+    /* ===== 입력 ===== */
 	private class KeyInputHandler extends KeyAdapter {
 		public void keyPressed(KeyEvent e) {
 			if (e.getKeyCode() == KeyEvent.VK_F11) { setFullscreen(!fullscreen); return; } // 전체화면 토글
@@ -1339,15 +1469,9 @@ public class Game extends Canvas {
 		}
 	}
 
-	/* ===== 인벤토리/점수/랭킹/저장 ===== */
-	public boolean collectBomb() {
-		if (bombCount < bombMax) { bombCount++; showToast("폭탄 획득! ("+bombCount+"/"+bombMax+")", 800); return true; }
-		else { showToast("폭탄이 가득 찼어요!", 800); return false; }
-	}
-	public boolean collectLaser() {
-		if (laserCount < laserMax) { laserCount = 1; showToast("레이저 획득! (L키로 사용)", 900); return true; }
-		else { showToast("레이저는 1개만 소지 가능!", 900); return false; }
-	}
+    @Override public boolean collectBomb() { return collectBombInternal(); }
+
+    @Override public boolean collectLaser() { return collectLaserInternal(); }
 
 	private void addScore(int delta){ if (delta>0) score += delta; }
 
@@ -1367,156 +1491,8 @@ public class Game extends Canvas {
 		return new ArrayList<>(saveData.leaderboard.subList(0, n));
 	}
 
-	private void loadSave() {
-		java.io.File f = new java.io.File(System.getProperty("user.home", "."), ".space_invaders_save.properties");
-		if (!f.exists()) { applySaveToRuntime(); return; }
-		java.util.Properties p = new java.util.Properties();
-		try (java.io.InputStream in = new java.io.FileInputStream(f)) { p.load(in); }
-		catch (Exception e) { applySaveToRuntime(); return; }
-
-		saveData.highestUnlockedLevel = parseInt(p.getProperty("highestUnlockedLevel"), 1);
-		saveData.achKill10   = parseBool(p.getProperty("achKill10"));
-		saveData.achClear100 = parseBool(p.getProperty("achClear100"));
-		saveData.achClear1Min= parseBool(p.getProperty("achClear1Min"));
-		saveData.totalKillsOverall = parseInt(p.getProperty("totalKillsOverall"), 0);
-		saveData.bestTimeMs = parseInt(p.getProperty("bestTimeMs"), -1);
-		saveData.lastSelectedShipIndex = parseInt(p.getProperty("lastSelectedShipIndex"), -1);
-
-		String pn = p.getProperty("playerName");
-		if (pn != null && !pn.isEmpty()) saveData.playerName = pn;
-		saveData.leaderboard.clear();
-		int cnt = parseInt(p.getProperty("leaderboard.count"), 0);
-		for (int i=1;i<=cnt;i++) {
-			String n = p.getProperty("leaderboard."+i+".name");
-			int sc   = parseInt(p.getProperty("leaderboard."+i+".score"), 0);
-			if (n != null) saveData.leaderboard.add(new RankRow(n, sc));
-		}
-
-		saveData.reinforcePoints = parseInt(p.getProperty("rf.points"), 0);
-		saveData.lvSpeed    = parseInt(p.getProperty("rf.lvSpeed"), 0);
-		saveData.lvFireRate = parseInt(p.getProperty("rf.lvFireRate"), 0);
-		saveData.lvShield   = parseInt(p.getProperty("rf.lvShield"), 0);
-		saveData.lvBomb     = parseInt(p.getProperty("rf.lvBomb"), 0);
-		saveData.lvLaser    = parseInt(p.getProperty("rf.lvLaser"), 0);
-
-		saveData.coins = parseInt(p.getProperty("coins"), 0);
-		saveData.selectedSkinIndex = parseInt(p.getProperty("skin.selected"), 0);
-		saveData.ownedSkinsCsv = p.getProperty("skin.owned", "");
-
-		applySaveToRuntime();
-	}
-
-	private void saveNow() {
-		int highest = 1;
-		for (int i=0;i<5;i++) if (levelUnlocked[i]) highest = i + 1;
-		saveData.highestUnlockedLevel = Math.max(saveData.highestUnlockedLevel, highest);
-		saveData.achKill10   = saveData.achKill10   || achKill10;
-		saveData.achClear100 = saveData.achClear100 || achClear100;
-		saveData.achClear1Min= saveData.achClear1Min|| achClear1Min;
-		saveData.lastSelectedShipIndex = selectedShipIndex;
-
-		java.util.Properties p = new java.util.Properties();
-		p.setProperty("highestUnlockedLevel", String.valueOf(saveData.highestUnlockedLevel));
-		p.setProperty("achKill10",   String.valueOf(saveData.achKill10));
-		p.setProperty("achClear100", String.valueOf(saveData.achClear100));
-		p.setProperty("achClear1Min",String.valueOf(saveData.achClear1Min));
-		p.setProperty("totalKillsOverall", String.valueOf(saveData.totalKillsOverall));
-		p.setProperty("bestTimeMs", String.valueOf(saveData.bestTimeMs));
-		p.setProperty("lastSelectedShipIndex", String.valueOf(saveData.lastSelectedShipIndex));
-
-		p.setProperty("playerName", saveData.playerName);
-		int cnt = Math.min(saveData.leaderboard.size(), LEADERBOARD_MAX);
-		p.setProperty("leaderboard.count", String.valueOf(cnt));
-		for (int i=1;i<=cnt;i++) {
-			RankRow r = saveData.leaderboard.get(i-1);
-			p.setProperty("leaderboard."+i+".name",  r.name);
-			p.setProperty("leaderboard."+i+".score", String.valueOf(r.score));
-		}
-
-		p.setProperty("rf.points", String.valueOf(reinforcePoints));
-		p.setProperty("rf.lvSpeed", String.valueOf(lvSpeed));
-		p.setProperty("rf.lvFireRate", String.valueOf(lvFireRate));
-		p.setProperty("rf.lvShield", String.valueOf(lvShield));
-		p.setProperty("rf.lvBomb", String.valueOf(lvBomb));
-		p.setProperty("rf.lvLaser", String.valueOf(lvLaser));
-
-		p.setProperty("coins", String.valueOf(coins));
-		p.setProperty("skin.selected", String.valueOf(selectedSkinIndex));
-		p.setProperty("skin.owned", ownedSkinsCsv());
-
-		java.io.File f = new java.io.File(System.getProperty("user.home", "."), ".space_invaders_save.properties");
-		try (java.io.OutputStream out = new java.io.FileOutputStream(f)) { p.store(out, "Space Invaders Save"); }
-		catch (Exception ignored) {}
-	}
-
-	private String ownedSkinsCsv() {
-		StringBuilder sb = new StringBuilder();
-		for (int i=0;i<skins.length;i++) {
-			if (i>0) sb.append(',');
-			sb.append(skins[i].owned ? '1' : '0');
-		}
-		return sb.toString();
-	}
-
-	private void applySaveToRuntime() {
-		for (int i=0;i<5;i++) levelUnlocked[i] = false;
-		int highest = Math.max(1, Math.min(5, saveData.highestUnlockedLevel));
-		for (int i=0;i<highest;i++) levelUnlocked[i] = true;
-
-		achKill10   = saveData.achKill10;
-		achClear100 = saveData.achClear100;
-		achClear1Min= saveData.achClear1Min;
-
-		if (saveData.lastSelectedShipIndex >= 0 && saveData.lastSelectedShipIndex <= 2) {
-			selectedShipIndex = saveData.lastSelectedShipIndex;
-		}
-
-		reinforcePoints = saveData.reinforcePoints;
-		lvSpeed    = Math.min(REINF_MAX, saveData.lvSpeed);
-		lvFireRate = Math.min(REINF_MAX, saveData.lvFireRate);
-		lvShield   = Math.min(REINF_MAX, saveData.lvShield);
-		lvBomb     = Math.min(REINF_MAX, saveData.lvBomb);
-		lvLaser    = Math.min(REINF_MAX, saveData.lvLaser);
-
-		coins = Math.max(0, saveData.coins);
-		selectedSkinIndex = Math.max(0, Math.min(saveData.selectedSkinIndex, skins.length-1));
-		for (int i=0;i<skins.length;i++) skins[i].owned = false;
-		if (saveData.ownedSkinsCsv != null && !saveData.ownedSkinsCsv.isEmpty()) {
-			String[] bits = saveData.ownedSkinsCsv.split(",");
-			for (int i=0;i<Math.min(bits.length, skins.length); i++) {
-				skins[i].owned = "1".equals(bits[i]) || "true".equalsIgnoreCase(bits[i]) || skins[i].owned;
-			}
-		}
-		if (selectedSkinIndex < 0 || selectedSkinIndex >= skins.length) selectedSkinIndex = 0;
-	}
-
-	private static boolean parseBool(String s) { return "true".equalsIgnoreCase(s) || "1".equals(s); }
-	private static int parseInt(String s, int def) { try { return Integer.parseInt(s); } catch (Exception e) { return def; } }
-
-	private void resetSaveAndRuntime() {
-		java.io.File f = new java.io.File(System.getProperty("user.home", "."), ".space_invaders_save.properties");
-		if (f.exists()) try { f.delete(); } catch (Exception ignore) {}
-		saveData = new SaveState(); applySaveToRuntime();
-
-		selectedLevel = -1; selectedShipIndex = -1; totalKills = 0; shotsFiredRun = 0;
-		achKill10 = false; achClear100 = false; achClear1Min = false;
-		lives = maxLives; shieldActive = false; invulnUntil = 0; killsSinceLastShield = 0;
-		bombCount = 0; laserCount = 0;
-		score = 0;
-
-		reinforcePoints = 0;
-		lvSpeed = lvFireRate = lvShield = lvBomb = lvLaser = 0;
-
-		coins = 0;
-		for (int i=0;i<skins.length;i++) skins[i].owned = false;
-		selectedSkinIndex = 0;
-
-		boss = null; bossSpawned = false; bossDefeated = false;
-
-		showToast("저장된 데이터가 초기화되었습니다.", 1400);
-	}
-
 	private interface Inc { void go(); }
+
 	private void tryUpgrade(Inc action, int currentLv) {
 		if (currentLv >= REINF_MAX) { showToast("이미 최대 레벨입니다.", 900); return; }
 		if (reinforcePoints <= 0) { showToast("강화 포인트가 부족합니다.", 900); return; }
@@ -1541,5 +1517,176 @@ public class Game extends Canvas {
 		showToast("구매/장착 완료: " + s.name + " (잔액: "+coins+")", 1300);
 	}
 
-	public static void main(String[] args) { Game g = new Game(); g.gameLoop(); }
+    private void showToast(String msg, long durationMs) {
+        toastText = msg;
+        toastUntil = SystemTimer.getTime() + durationMs;
+    }
+
+    private void loadSave() {
+        saveData = saveManager.load();
+    }
+
+    private void saveNow() {
+        // 1) 강화/코인
+        saveData.reinforcePoints = reinforcePoints;
+        saveData.lvSpeed    = lvSpeed;
+        saveData.lvFireRate = lvFireRate;
+        saveData.lvShield   = lvShield;
+        saveData.lvBomb     = lvBomb;
+        saveData.lvLaser    = lvLaser;
+        saveData.coins      = coins;
+
+        // 2) 스킨 보유 상태 CSV로 직렬화
+        StringBuilder ownedCsv = new StringBuilder();
+        for (int i = 0; i < skins.length; i++) {
+            if (i > 0) ownedCsv.append(',');
+            ownedCsv.append(skins[i].owned ? "1" : "0");
+        }
+        saveData.ownedSkinsCsv    = ownedCsv.toString();
+        saveData.selectedSkinIndex = selectedSkinIndex;
+
+        // 3) 레벨 해금
+        int highest = 1;
+        for (int i = 0; i < 5; i++) {
+            if (levelUnlocked[i]) highest = i + 1;
+        }
+        saveData.highestUnlockedLevel = highest;
+
+        // 4) 실제 파일 저장
+        saveManager.save(saveData);
+    }
+
+    private void resetSaveAndRuntime() {
+        saveManager.reset();
+        this.saveData = new SaveState();
+        resetRuntimeState();   // lives, score, coins, skins, boss 등 리셋
+        applySaveToRuntime();
+        showToast("저장된 데이터가 초기화되었습니다.", 1400);
+    }
+
+    /** 폭탄 아이템 습득 처리(내부용) */
+    private boolean collectBombInternal() {
+        if (bombCount < bombMax) {
+            bombCount++;
+            showToast("폭탄 획득! (" + bombCount + "/" + bombMax + ")", 800);
+            return true;
+        } else {
+            showToast("폭탄이 가득 찼어요!", 800);
+            return false;
+        }
+    }
+    /** 레이저 아이템 습득 처리(내부용) */
+    private boolean collectLaserInternal() {
+        if (laserCount < laserMax) {
+            laserCount = 1; // 레이저는 1개만
+            showToast("레이저 획득! (L키로 사용)", 900);
+            return true;
+        } else {
+            showToast("레이저는 1개만 소지 가능!", 900);
+            return false;
+        }
+    }
+
+    /** 이번 플레이(런) 동안만 의미가 있는 런타임 상태 초기화 */
+    private void resetRuntimeState() {
+        // 레벨/기체 선택
+        selectedLevel = -1;
+        selectedShipIndex = -1;
+
+        // 이번 런 통계
+        totalKills = 0;
+        shotsFiredRun = 0;
+        lastRunElapsedMs = -1;
+        runStartTime = 0;
+
+        // 도전과제 플래그 (이번 런 기준)
+        achKill10 = false;
+        achClear100 = false;
+        achClear1Min = false;
+
+        // 플레이어 상태
+        lives = maxLives;
+        shieldActive = false;
+        invulnUntil = 0;
+        killsSinceLastShield = 0;
+
+        // 인벤토리
+        bombCount = 0;
+        laserCount = 0;
+
+        // 점수
+        score = 0;
+
+        // 보스 상태
+        boss = null;
+        bossSpawned = false;
+        bossDefeated = false;
+
+        // 메뉴/화면 상태
+        waitingForKeyPress = true;
+        showHomeOnMenu = false;
+        showingChallenge = false;
+        showingLevelSelect = false;
+        showingShipSelect = false;
+        showingReinforce = false;
+        showingShop = false;
+
+        // 메시지 초기화
+        message = "SPACE INVADERS";
+    }
+    /** saveData(영구 저장 값)를 런타임 필드들에 적용 */
+    private void applySaveToRuntime() {
+        // 1) 레벨 해금 상태
+        for (int i = 0; i < 5; i++) {
+            levelUnlocked[i] = false;
+        }
+        int highest = Math.max(1, Math.min(5, saveData.highestUnlockedLevel));
+        for (int i = 0; i < highest; i++) {
+            levelUnlocked[i] = true;
+        }
+
+        // 2) 도전과제 플래그
+        achKill10    = saveData.achKill10;
+        achClear100  = saveData.achClear100;
+        achClear1Min = saveData.achClear1Min;
+
+        // 3) 마지막 선택 기체
+        if (saveData.lastSelectedShipIndex >= 0 && saveData.lastSelectedShipIndex <= 2) {
+            selectedShipIndex = saveData.lastSelectedShipIndex;
+        } else {
+            selectedShipIndex = -1;
+        }
+
+        // 4) 강화
+        reinforcePoints = saveData.reinforcePoints;
+        lvSpeed    = Math.min(REINF_MAX, saveData.lvSpeed);
+        lvFireRate = Math.min(REINF_MAX, saveData.lvFireRate);
+        lvShield   = Math.min(REINF_MAX, saveData.lvShield);
+        lvBomb     = Math.min(REINF_MAX, saveData.lvBomb);
+        lvLaser    = Math.min(REINF_MAX, saveData.lvLaser);
+
+        // 5) 코인/스킨
+        coins = Math.max(0, saveData.coins);
+        selectedSkinIndex = Math.max(0,
+                Math.min(saveData.selectedSkinIndex, skins.length - 1));
+
+        // 보유 스킨 배열 초기화
+        for (int i = 0; i < skins.length; i++) {
+            skins[i].owned = false;
+        }
+        if (saveData.ownedSkinsCsv != null && !saveData.ownedSkinsCsv.isEmpty()) {
+            String[] bits = saveData.ownedSkinsCsv.split(",");
+            for (int i = 0; i < Math.min(bits.length, skins.length); i++) {
+                if ("1".equals(bits[i]) || "true".equalsIgnoreCase(bits[i])) {
+                    skins[i].owned = true;
+                }
+            }
+        }
+        if (selectedSkinIndex < 0 || selectedSkinIndex >= skins.length) {
+            selectedSkinIndex = 0;
+        }
+    }
+
+    public static void main(String[] args) { Game g = new Game(); g.gameLoop(); }
+
 }
