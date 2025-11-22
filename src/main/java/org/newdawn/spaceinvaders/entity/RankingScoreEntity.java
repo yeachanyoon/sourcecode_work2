@@ -22,32 +22,34 @@ public class RankingScoreEntity extends Entity {
     @Override
     public void move(long delta) { /* no-op */ }
 
-    // ★ Graphics 사용
     @Override
     public void draw(Graphics g) {
-        if (!game.isShowingChallenge()) return; // 도전과제 화면일 때만 그림
+        // ✅ 더 이상 game.isShowingChallenge() 에 의존하지 않는다.
+        //    이 엔티티를 도전과제 화면에서만 그리도록 Game/Screen 쪽에서 제어해라.
 
-        // 제목
+        if (game == null) return;
+
         g.setFont(new Font("SansSerif", Font.BOLD, 20));
         g.setColor(Color.WHITE);
         g.drawString("Top Scores", 250, 300);
 
-        // 목록
         List<Game.RankRow> top = game.getTopScores(5);
+        if (top == null || top.isEmpty()) return;
+
         g.setFont(new Font("SansSerif", Font.PLAIN, 16));
         FontMetrics fm = g.getFontMetrics();
         int yy = 330;
+
         for (int i = 0; i < top.size(); i++) {
             Game.RankRow r = top.get(i);
-            String line = String.format("%2d) %-12s  %7d", i + 1, r.name, r.score);
+            String line = String.format("%2d) %-12s  %7d",
+                    i + 1, r.name, r.score);
             g.drawString(line, 230, yy);
             yy += fm.getHeight() + 4;
         }
     }
 
-    @Override
-    public void doLogic() { /* no-op */ }
+    @Override public void doLogic() { /* no-op */ }
 
-    @Override
-    public void collidedWith(Entity other) { /* no-op */ }
+    @Override public void collidedWith(Entity other) { /* no-op */ }
 }

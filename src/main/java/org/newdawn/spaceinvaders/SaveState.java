@@ -3,37 +3,57 @@ package org.newdawn.spaceinvaders;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 게임의 영구 저장 데이터 모델.
+ * - 순수 데이터만 들고 있고, 파일 IO는 SaveManager가 담당한다.
+ */
 public class SaveState {
 
-    // --- 레벨/도전과제 ---
-    public int  highestUnlockedLevel = 1;  // 해금된 최고 레벨 (1~5)
-    public boolean achKill10    = false;   // 적 10마리 처치
-    public boolean achClear100  = false;   // 100발 이하 클리어
-    public boolean achClear1Min = false;   // 1분 안에 클리어
+    /** 버전 관리용 (필요하면 나중에 마이그레이션할 때 사용) */
+    public int version = 1;
 
-    public int totalKillsOverall    = 0;   // 지금까지 처치한 적 수(최고 기록)
-    public int bestTimeMs           = -1;  // 최단 클리어 타임(ms)
-    public int lastSelectedShipIndex = -1; // 마지막 사용 기체 인덱스 (0~2)
+    /* ===== 기본 진행도 ===== */
+    /** 플레이어 이름 (리더보드 표시용) */
+    public String playerName = "PLAYER";
 
-    // --- 랭킹/플레이어 이름 ---
-    public List<Game.RankRow> leaderboard = new ArrayList<>();
-    public String playerName = System.getProperty("user.name", "PLAYER");
+    /** 해금된 최고 레벨 (1~5) */
+    public int highestUnlockedLevel = 1;
 
-    // --- 강화 ---
+    /** 전체 누적 처치 수 (통계용) */
+    public int totalKillsOverall = 0;
+
+    /** 최고 클리어 타임(ms), 없으면 -1 */
+    public int bestTimeMs = -1;
+
+    /** 마지막으로 선택한 기체 인덱스 (0~2, 없으면 -1) */
+    public int lastSelectedShipIndex = -1;
+
+    /* ===== 도전과제 플래그 ===== */
+    public boolean achKill10   = false;
+    public boolean achClear100 = false;
+    public boolean achClear1Min = false;
+
+    /* ===== 강화 관련 ===== */
     public int reinforcePoints = 0;
-    public int lvSpeed    = 0;
+    public int lvSpeed  = 0;
     public int lvFireRate = 0;
-    public int lvShield   = 0;
-    public int lvBomb     = 0;
-    public int lvLaser    = 0;
+    public int lvShield = 0;
+    public int lvBomb   = 0;
+    public int lvLaser  = 0;
 
-    // --- 상점/스킨 ---
+    /* ===== 상점/스킨 ===== */
     public int coins = 0;
-    public int selectedSkinIndex = 0;
-    /** 스킨 보유 여부를 "1,0,1,..." 형태로 저장 */
-    public String ownedSkinsCsv = "";
 
-    public SaveState() {
-        // 기본값은 필드 선언부에서 이미 넣어놔서 비워둬도 됨
-    }
+    /** 현재 선택된 스킨 인덱스 (0 이상, 없으면 0) */
+    public int selectedSkinIndex = 0;
+
+    /**
+     * 보유 스킨 정보 CSV.
+     * 예: "1,0,0"  → 0번 스킨만 보유
+     *     "1,1,0"  → 0,1번 스킨 보유
+     */
+    public String ownedSkinsCsv = "1,0,0";
+
+    /* ===== 리더보드 ===== */
+    public List<Game.RankRow> leaderboard = new ArrayList<>();
 }
