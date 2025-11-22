@@ -5,7 +5,7 @@ import org.newdawn.spaceinvaders.Game;
 /**
  * 플레이어가 쏘는 총알 엔티티
  */
-public class ShotEntity extends Entity {
+public class ShotEntity extends Entity implements Logical, Collidable {
 	private double moveSpeed = -300; // 위로 올라감
 	private Game game;
 	private boolean used = false;

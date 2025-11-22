@@ -11,7 +11,7 @@ import org.newdawn.spaceinvaders.SpriteStore;
  * - 위치/이동/그리기/충돌처리의 공통 로직을 제공
  * - 하위 클래스는 doLogic(), collidedWith()를 구현해야 함
  */
-public abstract class Entity {
+public abstract class Entity implements Movable, Renderable{
 	/** 현재 스프라이트 */
 	protected Sprite sprite;
 
@@ -43,12 +43,14 @@ public abstract class Entity {
 	/* ========== 이동 & 렌더 ========== */
 
 	/** delta(ms) 동안의 이동 처리 */
+    @Override // Movable
 	public void move(long delta) {
 		x += (dx * delta) / 1000.0;
 		y += (dy * delta) / 1000.0;
 	}
 
 	/** 그리기 (스프라이트가 있을 때만) */
+    @Override // Renderable
 	public void draw(Graphics g) {
 		if (sprite != null) {
 			sprite.draw(g, (int) x, (int) y);
@@ -98,19 +100,17 @@ public abstract class Entity {
 		return 0;
 	}
 
-	/* ========== 속도 제어 ========== */
+    @Override public void setHorizontalMovement(double dx) { this.dx = dx; }
+    @Override public void setVerticalMovement(double dy) { this.dy = dy; }
 
-	public void setHorizontalMovement(double dx) { this.dx = dx; }
-	public void setVerticalMovement(double dy) { this.dy = dy; }
-
-	public double getHorizontalMovement() { return dx; }
-	public double getVerticalMovement() { return dy; }
+    @Override public double getHorizontalMovement() { return dx; }
+    @Override public double getVerticalMovement() { return dy; }
 
 	/* ========== 게임 로직/충돌 이벤트 ========== */
-
-	/** 프레임 간 논리 업데이트(예: 행 이동, 속도 변경 등) */
-	public abstract void doLogic();
-
-	/** 충돌 시 호출되는 콜백 */
-	public abstract void collidedWith(Entity other);
+//  인터페이스 분리
+//	/** 프레임 간 논리 업데이트(예: 행 이동, 속도 변경 등) */
+//	public abstract void doLogic();
+//
+//	/** 충돌 시 호출되는 콜백 */
+//	public abstract void collidedWith(Entity other);
 }

@@ -15,12 +15,7 @@ public class MainMenuEntity extends Entity {
     }
 
     public void move(long delta) { /* 메뉴는 이동 없음 */ }
-
-    public void doLogic() {
-    }
-
-    public void collidedWith(Entity other) {
-    }
+    //collidewith, dologic 삭제
 
     // ✅ 부모와 동일 시그니처로 수정: Graphics
     public void draw(Graphics g0) {

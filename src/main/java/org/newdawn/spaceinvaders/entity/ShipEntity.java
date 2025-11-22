@@ -5,7 +5,7 @@ import org.newdawn.spaceinvaders.Game;
 /**
  * The entity that represents the player's ship.
  */
-public class ShipEntity extends Entity {
+public class ShipEntity extends Entity implements Collidable, Logical {
 	/** The game in which the ship exists */
 	private Game game;
 

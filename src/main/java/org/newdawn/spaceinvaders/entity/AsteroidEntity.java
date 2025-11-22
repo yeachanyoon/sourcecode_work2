@@ -2,7 +2,7 @@ package org.newdawn.spaceinvaders.entity;
 
 import org.newdawn.spaceinvaders.Game;
 
-public class AsteroidEntity extends Entity {
+public class AsteroidEntity extends Entity implements Logical, Collidable {
     private final Game game;
     private final double fallSpeed;
 

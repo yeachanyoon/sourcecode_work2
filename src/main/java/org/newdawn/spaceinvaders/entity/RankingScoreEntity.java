@@ -45,9 +45,5 @@ public class RankingScoreEntity extends Entity {
         }
     }
 
-    @Override
-    public void doLogic() { /* no-op */ }
-
-    @Override
-    public void collidedWith(Entity other) { /* no-op */ }
+    //collidewith, dologic 삭제
 }

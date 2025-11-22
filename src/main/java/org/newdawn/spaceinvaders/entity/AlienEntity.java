@@ -14,7 +14,7 @@ import org.newdawn.spaceinvaders.SpriteStore;
  *   -> 만약 30% 폭탄 드랍(좌표 필요)을 Alien에서 직접 처리하길 원하면
  *      ShotEntity 쪽 로직을 비활성화하고 여기에서 처리하도록 별도 버전 줄 수 있음.
  */
-public class AlienEntity extends Entity {
+public class AlienEntity extends Entity implements Logical, Collidable {
 	/** horizontal speed */
 	private double moveSpeed = 75;
 	/** game ref */

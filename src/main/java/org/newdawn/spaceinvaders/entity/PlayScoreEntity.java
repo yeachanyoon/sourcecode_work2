@@ -33,13 +33,5 @@ public class PlayScoreEntity extends Entity {
         g.drawString(scoreStr, Game.VIRTUAL_WIDTH - 150, 20);
     }
 
-    @Override
-    public void doLogic() {
-        // no-op
-    }
-
-    @Override
-    public void collidedWith(Entity other) {
-        // no-op (HUD)
-    }
+    //collidewith, dologic 삭제
 }

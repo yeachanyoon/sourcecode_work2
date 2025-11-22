@@ -456,8 +456,17 @@ public class Game extends Canvas implements GameContext {
 
 	/* ===== 로직/충돌/알림 ===== */
 	public void addEntity(Entity e){ entities.add(e); }
-	public void updateLogic() { for (int i=0;i<entities.size();i++) entities.get(i).doLogic(); }
-	public void removeEntity(Entity entity) { removeList.add(entity); }
+    //dologic 구조 변경에 따른 추가
+    public void updateLogic() {
+        for (int i = 0; i < entities.size(); i++) {
+            Entity e = entities.get(i);
+            // Logical 인터페이스를 구현한 경우에만 doLogic() 호출
+            if (e instanceof Logical) {
+                ((Logical) e).doLogic();
+            }
+        }
+    }
+    public void removeEntity(Entity entity) { removeList.add(entity); }
 
 	public void loseHeart() { notifyDeath(); }
     public boolean isPlayerInvincible() { return SystemTimer.getTime() < invulnUntil; }
@@ -1355,12 +1364,22 @@ public class Game extends Canvas implements GameContext {
 
             // 2) 충돌 검사
             for (int p = 0; p < entities.size(); p++) {
+                Entity me = entities.get(p);
+                // me가 Collidable을 구현하는 경우만 충돌 처리에 참여
+                boolean meIsCollidable = me instanceof Collidable;
+
                 for (int s2 = p + 1; s2 < entities.size(); s2++) {
-                    Entity me = entities.get(p);
                     Entity him = entities.get(s2);
+
+                    // me와 him 모두 충돌 판정 자체는 Entity에서 수행
                     if (me.collidesWith(him)) {
-                        me.collidedWith(him);
-                        him.collidedWith(me);
+                        // 충돌 반응은 Collidable을 구현한 엔티티에서만 호출
+                        if (meIsCollidable) {
+                            ((Collidable) me).collidedWith(him);
+                        }
+                        if (him instanceof Collidable) { // him에 대한 체크 추가
+                            ((Collidable) him).collidedWith(me);
+                        }
                     }
                 }
             }
@@ -1378,7 +1397,10 @@ public class Game extends Canvas implements GameContext {
         // 5) (원래 있던 경우) logicRequiredThisLoop 처리도 여기서
         if (logicRequiredThisLoop) {
             for (int i = 0; i < entities.size(); i++) {
-                entities.get(i).doLogic();
+                Entity e = entities.get(i);
+                if (e instanceof Logical) { // Logical 인터페이스 체크 추가
+                    ((Logical) e).doLogic();
+                }
             }
             logicRequiredThisLoop = false;
         }

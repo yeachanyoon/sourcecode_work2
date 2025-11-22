@@ -7,7 +7,7 @@ import org.newdawn.spaceinvaders.Sprite;
 import org.newdawn.spaceinvaders.SpriteStore;
 
 /** 보스 엔티티 (보스 처치까지 클리어) */
-public class BossEntity extends Entity {
+public class BossEntity extends Entity implements Logical, Collidable {
     private final Game game;
     private final Sprite sprite;
 

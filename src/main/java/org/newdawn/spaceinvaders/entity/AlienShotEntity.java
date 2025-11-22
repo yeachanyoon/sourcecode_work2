@@ -6,7 +6,7 @@ import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
 import org.newdawn.spaceinvaders.Game;
 
-public class AlienShotEntity extends Entity {
+public class AlienShotEntity extends Entity implements Logical, Collidable {
     private final Game game;
     private double bulletSpeed = 400; // 아래로 이동
 

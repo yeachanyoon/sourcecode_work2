@@ -12,7 +12,7 @@ import org.newdawn.spaceinvaders.SystemTimer;
 /**
  * BombEntity: DROP(떨어지는아이템) / PROJECTILE(발사체) / EXPLODING(폭발)
  */
-public class BombEntity extends Entity {
+public class BombEntity extends Entity implements Logical, Collidable {
 
     private final GameContext ctx;   // ✅ Game 대신 인터페이스 하나만 사용
 

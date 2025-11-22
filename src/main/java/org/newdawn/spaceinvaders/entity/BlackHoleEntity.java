@@ -14,7 +14,7 @@ import org.newdawn.spaceinvaders.SystemTimer;
  * - 감속 적용은 Game에서 "플레이어 이동속도 계산" 시만 이뤄진다.
  * - 여기서는 위치/수명/렌더만 관리한다.
  */
-public class BlackHoleEntity extends Entity {
+public class BlackHoleEntity extends Entity implements Logical {
     private final Game game;
 
     private final double radius;       // 감속 반경(시각적/논리적)
@@ -67,5 +67,5 @@ public class BlackHoleEntity extends Entity {
     }
 
     @Override public void doLogic() { /* 없음 */ }
-    @Override public void collidedWith(Entity other) { /* 없음 */ }
+    //collidewith 삭제
 }

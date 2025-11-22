@@ -11,7 +11,7 @@ import org.newdawn.spaceinvaders.Game;
  * - ITEM: 이미지 없이 도형으로 렌더. 천천히 아래로 떨어지고 Ship과 닿으면 습득.
  * - BEAM: 지정 시간(ms) 유지, 매 프레임 Ship의 중심 X를 따라가며 Game.tickLaserAt(cx, halfW)로 판정.
  */
-public class LaserEntity extends Entity {
+public class LaserEntity extends Entity implements Logical, Collidable {
 
     public enum Mode { ITEM, BEAM }
 
