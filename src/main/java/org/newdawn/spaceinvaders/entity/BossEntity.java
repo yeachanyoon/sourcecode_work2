@@ -7,7 +7,7 @@ import org.newdawn.spaceinvaders.Sprite;
 import org.newdawn.spaceinvaders.SpriteStore;
 
 /** 보스 엔티티 */
-public class BossEntity extends Entity {
+public class BossEntity extends PhysicalEntity {
     private final GameContext ctx;
     private final Sprite sprite;
 

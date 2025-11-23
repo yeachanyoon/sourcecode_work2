@@ -3,7 +3,7 @@ package org.newdawn.spaceinvaders.entity;
 import org.newdawn.spaceinvaders.Game;
 import org.newdawn.spaceinvaders.GameContext;
 
-public class AsteroidEntity extends Entity {
+public class AsteroidEntity extends PhysicalEntity {
     private final GameContext game;
     private final double fallSpeed;
 

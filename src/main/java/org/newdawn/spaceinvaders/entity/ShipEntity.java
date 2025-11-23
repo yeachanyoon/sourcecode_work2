@@ -5,7 +5,7 @@ import org.newdawn.spaceinvaders.GameContext;
 /**
  * The entity that represents the player's ship.
  */
-public class ShipEntity extends Entity {
+public class ShipEntity extends PhysicalEntity {
     /** The game context in which the ship exists (PlayScreen 등) */
     private final GameContext game;
 

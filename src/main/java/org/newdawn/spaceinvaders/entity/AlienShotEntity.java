@@ -7,7 +7,7 @@ import java.awt.geom.AffineTransform;
 import org.newdawn.spaceinvaders.Game;
 import org.newdawn.spaceinvaders.GameContext;
 
-public class AlienShotEntity extends Entity {
+public class AlienShotEntity extends PhysicalEntity {
     private final GameContext game;
     private double bulletSpeed = 400; // 아래로 이동
 

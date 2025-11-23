@@ -4,7 +4,7 @@ import org.newdawn.spaceinvaders.GameContext;
 import org.newdawn.spaceinvaders.Sprite;
 import org.newdawn.spaceinvaders.SpriteStore;
 
-public class AlienEntity extends Entity {
+public class AlienEntity extends PhysicalEntity {
     /** horizontal speed */
     private double moveSpeed = 75;
     /** game context (PlayScreen) */

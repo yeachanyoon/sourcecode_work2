@@ -15,12 +15,9 @@ public class RankingScoreEntity extends Entity {
     public RankingScoreEntity(Game game) {
         super("sprites/ship.gif", -10000, -10000); // 화면 밖
         this.game = game;
-        setHorizontalMovement(0);
-        setVerticalMovement(0);
+
     }
 
-    @Override
-    public void move(long delta) { /* no-op */ }
 
     @Override
     public void draw(Graphics g) {
@@ -49,7 +46,4 @@ public class RankingScoreEntity extends Entity {
         }
     }
 
-    @Override public void doLogic() { /* no-op */ }
-
-    @Override public void collidedWith(Entity other) { /* no-op */ }
 }

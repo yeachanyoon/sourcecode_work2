@@ -9,7 +9,7 @@ import org.newdawn.spaceinvaders.GameContext;
 /**
  * 레이저 아이템 & 레이저 빔(시각효과) 엔티티
  */
-public class LaserEntity extends Entity {
+public class LaserEntity extends PhysicalEntity {
 
     public enum Mode { ITEM, BEAM }
 

@@ -14,14 +14,10 @@ public class PlayScoreEntity extends Entity {
     public PlayScoreEntity(Game game) {
         super("sprites/ship.gif", -10000, -10000); // 화면 밖
         this.game = game;
-        setHorizontalMovement(0);
-        setVerticalMovement(0);
+
     }
 
-    @Override
-    public void move(long delta) {
-        // no-op (HUD)
-    }
+
 
     // ★ 핵심: Graphics2D가 아니라 Graphics를 사용해야 상위 Entity.draw(...)와 시그니처 일치
     @Override
@@ -33,13 +29,5 @@ public class PlayScoreEntity extends Entity {
         g.drawString(scoreStr, Game.VIRTUAL_WIDTH - 150, 20);
     }
 
-    @Override
-    public void doLogic() {
-        // no-op
-    }
 
-    @Override
-    public void collidedWith(Entity other) {
-        // no-op (HUD)
-    }
 }

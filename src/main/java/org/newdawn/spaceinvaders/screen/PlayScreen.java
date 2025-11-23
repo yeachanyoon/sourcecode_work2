@@ -31,7 +31,7 @@ public class PlayScreen implements Screen, GameContext {
     private final SpawnManager spawnManager;
 
     // 플레이어
-    private Entity ship;
+    private ShipEntity ship;
     private final int selectedShipIndex;
     private final int selectedLevel;
 
@@ -279,7 +279,9 @@ public class PlayScreen implements Screen, GameContext {
         // 남은 Alien들 약간씩 가속
         for (Entity e : entities) {
             if (e instanceof AlienEntity) {
-                e.setHorizontalMovement(e.getHorizontalMovement() * 1.02);
+                // [수정] AlienEntity로 형변환(Casting) 후 호출
+                AlienEntity alien = (AlienEntity) e;
+                alien.setHorizontalMovement(alien.getHorizontalMovement() * 1.02);
             }
         }
 

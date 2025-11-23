@@ -5,7 +5,7 @@ import org.newdawn.spaceinvaders.GameContext;
 /**
  * 플레이어가 쏘는 총알 엔티티
  */
-public class ShotEntity extends Entity {
+public class ShotEntity extends PhysicalEntity {
     private static final double MOVE_SPEED = -300; // 위로 올라감
 
     // 🔹 이제 Game이 아니라 GameContext(PlayScreen 등)를 참조

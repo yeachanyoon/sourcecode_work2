@@ -54,7 +54,12 @@ public class World {
     // ===== 프레임 단위 이동 =====
     public void moveAll(long delta) {
         for (int i = 0; i < entities.size(); i++) {
-            entities.get(i).move(delta);
+            Entity e = entities.get(i);
+
+            // ★ 이동 가능한 객체인지 확인
+            if (e instanceof Movable) {
+                ((Movable) e).move(delta);
+            }
         }
     }
 
@@ -62,11 +67,25 @@ public class World {
         int size = entities.size();
         for (int i = 0; i < size; i++) {
             Entity me = entities.get(i);
-            for (int j = i + 1; j < size; j++) {
-                Entity other = entities.get(j);
-                if (me.collidesWith(other)) {
-                    me.collidedWith(other);
-                    other.collidedWith(me);
+
+            // ★ 내가 충돌 가능한 객체인가?
+            if (me instanceof Collidable) {
+                Collidable cMe = (Collidable) me;
+
+                for (int j = i + 1; j < size; j++) {
+                    Entity other = entities.get(j);
+
+                    // ★ 상대방도 충돌 검사가 필요한 대상인가? (옵션)
+                    // 보통 한쪽만 Collidable이어도 충돌 판정은 가능하지만,
+                    // 로직상 양쪽 다 물리 객체일 때만 의미가 있다면 체크합니다.
+                    if (cMe.collidesWith(other)) {
+                        cMe.collidedWith(other);
+
+                        // 상대방도 Collidable이라면 알림
+                        if (other instanceof Collidable) {
+                            ((Collidable) other).collidedWith(me);
+                        }
+                    }
                 }
             }
         }
@@ -80,7 +99,12 @@ public class World {
         }
 
         for (int i = 0; i < entities.size(); i++) {
-            entities.get(i).doLogic();
+            Entity e = entities.get(i);
+
+            // ★ 로직 업데이트가 필요한 물리 엔티티인지 확인
+            if (e instanceof PhysicalEntity) {
+                ((PhysicalEntity) e).doLogic();
+            }
         }
 
         logicRequiredThisLoop = false;
