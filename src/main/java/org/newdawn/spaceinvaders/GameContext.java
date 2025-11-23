@@ -30,4 +30,9 @@ public interface GameContext {
     int getShipCenterX();
     int getVirtualWidth();
     int getVirtualHeight();
+
+    /** Alien이 화면 끝에 닿았을 때 "이번 루프에 doLogic() 좀 돌려줘" 요청 */
+    void requestLogicUpdate();
+
+    void tickLaserAt(int cx, int halfWidth);
 }

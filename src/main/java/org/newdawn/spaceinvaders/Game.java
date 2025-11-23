@@ -24,47 +24,31 @@ import javax.swing.JPanel;
 
 import org.newdawn.spaceinvaders.entity.*;
 import org.newdawn.spaceinvaders.screen.MainMenuScreen;
+import org.newdawn.spaceinvaders.screen.PlayScreen;
 import org.newdawn.spaceinvaders.screen.Screen;
 
-public class Game extends Canvas implements GameContext {
-	public static final int VIRTUAL_WIDTH  = 800;
+public class Game extends Canvas {
+
+    private Screen currentScreen;
+
+    private String toastText = null;
+    private long   toastUntil = 0;
+
+    private int selectedShipIndex = -1;
+
+    private boolean achKill10   = false;
+    private boolean achClear100 = false;
+    private boolean achClear1Min = false;
+
+    private int score = 0;
+
+    private Sprite ship1Sprite, ship2Sprite, ship3Sprite, ship3ProSprite;
+
+    public static final int VIRTUAL_WIDTH  = 800;
 	public static final int VIRTUAL_HEIGHT = 600;
 
 	private BufferStrategy strategy;
 	private boolean gameRunning = true;
-
-	private ArrayList<Entity> entities   = new ArrayList<>();
-	private ArrayList<Entity> removeList = new ArrayList<>();
-	private Entity ship;
-
-    private World world;
-    private SpawnManager spawnManager;
-
-	private double moveSpeed = 300;
-	private long lastFire = 0;
-	private long firingInterval = 500;
-
-	private String message = "SPACE INVADERS";
-
-    private Screen currentScreen;
-
-	private boolean leftPressed = false;
-	private boolean rightPressed = false;
-	private boolean firePressed = false;
-
-	// 폭탄
-	private boolean bombPressed = false;
-	private long lastBombFire = 0;
-	private long bombFireInterval = 400;
-	private int bombCount = 0;
-	private final int bombMax = 2;
-
-	// 레이저
-	private boolean laserPressed = false;
-	private long lastLaserUse = 0;
-	private long laserCooldown = 500;
-	private int  laserCount = 0;
-	private final int laserMax = 1;
 
 	private long lastFpsTime;
 	private int fps;
@@ -89,66 +73,14 @@ public class Game extends Canvas implements GameContext {
             new ShopSystem.Skin("Green", "sprites/ship_green.gif", 900,  false)
     };
 
-
     private final boolean[] levelUnlocked = new boolean[5];
 	private int selectedLevel = -1;
 
-
-	private int selectedShipIndex = -1;
-
 	// 미리보기/하트
-	private Sprite ship1Sprite, ship2Sprite, ship3Sprite, ship3ProSprite;
 	private Sprite heartFullSprite, heartEmptySprite;
 
-	// 목숨
-	private final int maxLives = 3;
-	private int lives = maxLives;
+    private HudRenderer hudRenderer;
 
-	// 런 통계/도전과제
-	private int totalKills = 0;
-	private boolean achKill10   = false;
-	private int shotsFiredRun   = 0;
-	private boolean achClear100 = false;
-	private long runStartTime   = 0;
-	private long lastRunElapsedMs = -1;
-	private boolean achClear1Min  = false;
-
-	// 기체 #3 방어막
-	private boolean shieldActive  = false;
-	private long invulnUntil      = 0;
-	private int  killsSinceLastShield = 0;
-
-	// 토스트
-	private String toastText = null;
-	private long toastUntil  = 0;
-
-	// 적 사격/스폰
-	private long lastAlienFire = 0;
-	private long alienFireInterval = 1200;
-
-	private long nextAsteroidSpawn = 0;
-	private long asteroidInterval = 3000;
-
-	// 블랙홀(플레이어만 감속)
-	private long lastBlackHoleSpawn = 0;
-	private long blackHoleInterval = 15000;
-	private float blackHoleRadius   = 180f;
-	private long  blackHoleLifeMs   = 7000;
-
-	// 점수 / 랭킹 UI
-	private PlayScoreEntity playScoreUI;
-	private RankingScoreEntity rankingUI;
-
-	// 보스
-	private BossEntity boss = null;
-	private boolean bossSpawned = false;
-	private boolean bossDefeated = false;
-
-	// 랜덤
-	private final Random rng = new Random();
-
-	// 점수 / 랭킹
-	private int score = 0;
 	public static class RankRow { public final String name; public final int score; public RankRow(String n,int s){name=n;score=s;} }
 	private static final int LEADERBOARD_MAX = 10;
 
@@ -159,7 +91,6 @@ public class Game extends Canvas implements GameContext {
 
 	/* ========================= 강화 상태/상수 ========================= */
 	private int reinforcePoints = 0;
-	private static final int REINF_MAX = 5;
 	private int lvSpeed = 0, lvFireRate = 0, lvShield = 0, lvBomb = 0, lvLaser = 0;
 
 	/* ========================= 상점(스킨) ========================= */
@@ -177,15 +108,8 @@ public class Game extends Canvas implements GameContext {
 	private int selectedSkinIndex = 0;
 	private int coins = 0;
 
-
 	private static final int COIN_PER_ALIEN = 5;
 	private static final int COIN_ON_CLEAR  = 200;
-
-	// ==== 레벨별 파라미터(드랍/사격/이동속도) ====
-	private double levelBombDrop = 0.10;  // 기본 10%
-	private double levelLaserDrop = 0.06; // 기본 6%
-	private double levelAlienSpeedMul = 0.80; // 기본 0.80
-
 
 	public Game() {
 		container = new JFrame("Space Invaders 102");
@@ -228,26 +152,17 @@ public class Game extends Canvas implements GameContext {
 		heartFullSprite  = SpriteStore.get().getSprite("sprites/full_heart.png");
 		heartEmptySprite = SpriteStore.get().getSprite("sprites/empty_heart.png");
 
-		initEntities();
-
-		playScoreUI = new PlayScoreEntity(this);
-		rankingUI   = new RankingScoreEntity(this);
-		entities.add(playScoreUI);
-		entities.add(rankingUI);
-
-        applySaveToRuntime();
-
-        currentScreen = new MainMenuScreen(this);
-
-        spawnManager = new SpawnManager(this);
-        world = new World(this, entities, removeList, spawnManager);
+        hudRenderer = new HudRenderer(heartFullSprite, heartEmptySprite);
 
         saveData = saveManager.load();
         reinforceSystem = ReinforceSystem.fromSave(saveData);
         shopSystem       = ShopSystem.fromSave(saveData, BASE_SKINS);
-	}
-    @Override public int getVirtualWidth() { return VIRTUAL_WIDTH; }
-    @Override public int getVirtualHeight() { return VIRTUAL_HEIGHT; }
+        applySaveToRuntime();
+        currentScreen = new MainMenuScreen(this);
+    }
+
+    public int getVirtualWidth() { return VIRTUAL_WIDTH; }
+    public int getVirtualHeight() { return VIRTUAL_HEIGHT; }
 
 	// ====== 스케일/오프셋/좌표 변환 ======
 	private double currentScale() {
@@ -257,12 +172,14 @@ public class Game extends Canvas implements GameContext {
 		double sy = ch / (double) VIRTUAL_HEIGHT;
 		return Math.min(sx, sy);
 	}
+
 	private int offsetXForScale(double scale) {
 		return (int) Math.round((getWidth() - VIRTUAL_WIDTH * scale) / 2.0);
 	}
 	private int offsetYForScale(double scale) {
 		return (int) Math.round((getHeight() - VIRTUAL_HEIGHT * scale) / 2.0);
 	}
+
 	private int toVirtualX(int mx) {
 		double s = currentScale();
 		int ox = offsetXForScale(s);
@@ -300,520 +217,6 @@ public class Game extends Canvas implements GameContext {
 		container.setVisible(true);
 		rebuildBufferStrategy();
 	}
-
-	private void initEntities() {
-		ship = new ShipEntity(this, "sprites/ship.gif", 370, 550);
-		entities.add(ship);
-
-		int rows = 5, cols = 12;
-		int startX = 100, startY = 50, dx = 50, dy = 30;
-		for (int r = 0; r < rows; r++) {
-			for (int c = 0; c < cols; c++) {
-				Entity alien = new AlienEntity(this, startX + c * dx, startY + r * dy);
-				entities.add(alien);
-			}
-		}
-	}
-
-	// Game.java 내 교체
-	private void initEntitiesForLevel(int level) {
-		// 1) 기체 스프라이트 결정
-		String shipImage;
-		switch (selectedShipIndex) {
-			case 1: // 기체 #2
-				shipImage = "sprites/ship2.png";
-				break;
-			case 2: // 기체 #3
-				shipImage = "sprites/ship3.png";
-				break;
-			case 0:
-			default:
-				// 기본 기체(#1)일 때만 스킨 적용
-				if (selectedSkinIndex >= 0 && selectedSkinIndex < skins.length && skins[selectedSkinIndex].owned) {
-					shipImage = skins[selectedSkinIndex].spriteRef;
-				} else {
-					shipImage = "sprites/ship.gif";
-				}
-				break;
-		}
-
-		// 2) 플레이어 생성
-		ship = new ShipEntity(this, shipImage, 370, 550);
-		entities.add(ship);
-
-		// 3) 레벨별 에일리언 이동속도 배수 적용(기존 로직 유지)
-		double spMul = levelAlienSpeedMul;
-
-		int rows = 5, cols = 12;
-		int startX = 100, startY = 50, dx = 50, dy = 30;
-		for (int r = 0; r < rows; r++) {
-			for (int c = 0; c < cols; c++) {
-				AlienEntity alien = new AlienEntity(this, startX + c * dx, startY + r * dy);
-				alien.setHorizontalMovement(alien.getHorizontalMovement() * spMul);
-				entities.add(alien);
-			}
-		}
-	}
-
-
-	private void applyShipPreset(int idx) {
-		moveSpeed = 300;
-		shieldActive = false;
-		invulnUntil = 0;
-		killsSinceLastShield = 0;
-
-		if (idx == 1)      moveSpeed = 150; // #2 이속 1/2 + 2연발
-		else if (idx == 2) moveSpeed = 240; // #3 약간↓ + 30킬 방어막
-	}
-
-	private void applyLevelParams(int level) {
-		// 기본값(레벨 1)
-		levelBombDrop = 0.10; levelLaserDrop = 0.06; alienFireInterval = 1300; levelAlienSpeedMul = 0.80;
-		switch (level) {
-			case 2: levelBombDrop = 0.08; levelLaserDrop = 0.05; alienFireInterval = 1200; levelAlienSpeedMul = 0.90; break;
-			case 3: levelBombDrop = 0.07; levelLaserDrop = 0.04; alienFireInterval = 1100; levelAlienSpeedMul = 1.00; break;
-			case 4: levelBombDrop = 0.06; levelLaserDrop = 0.03; alienFireInterval = 1000; levelAlienSpeedMul = 1.10; break;
-			case 5: levelBombDrop = 0.05; levelLaserDrop = 0.02; alienFireInterval = 900;  levelAlienSpeedMul = 1.20; break;
-			default: break;
-		}
-	}
-
-	private void startGame() {
-		entities.clear();
-		if (playScoreUI == null) playScoreUI = new PlayScoreEntity(this);
-		if (rankingUI   == null) rankingUI   = new RankingScoreEntity(this);
-
-		// 레벨별 파라미터 먼저 적용
-		applyLevelParams(selectedLevel);
-
-		initEntitiesForLevel(selectedLevel);
-		entities.add(playScoreUI);
-		entities.add(rankingUI);
-
-		leftPressed = rightPressed = firePressed = false;
-		bombPressed = false; laserPressed = false;
-		shotsFiredRun = 0;
-		runStartTime  = SystemTimer.getTime();
-		lastRunElapsedMs = -1;
-
-		score = 0;
-		lives = maxLives;
-		invulnUntil = 0;
-		shieldActive = false;
-		killsSinceLastShield = 0;
-
-		bombCount = 0;
-		laserCount = 0;
-
-		lastAlienFire = 0;
-		nextAsteroidSpawn = 0;
-		lastBlackHoleSpawn = 0;
-		lastBombFire = 0;
-		lastLaserUse = 0;
-
-		boss = null;
-		bossSpawned = false;
-		bossDefeated = false;
-
-		message = "";
-
-		double baseSpeed = moveSpeed;
-		moveSpeed = baseSpeed * (1.0 + lvSpeed * 0.10);
-		firingInterval = Math.max(100, 500 - lvFireRate * 40);
-
-        currentScreen = null;
-	}
-
-	/* ===== 로직/충돌/알림 ===== */
-	public void addEntity(Entity e){ entities.add(e); }
-	public void updateLogic() {
-        if (world != null) {
-            world.requestLogicUpdate();
-        }
-    }
-	public void removeEntity(Entity entity) { removeList.add(entity); }
-
-	public void loseHeart() { notifyDeath(); }
-    public boolean isPlayerInvincible() { return SystemTimer.getTime() < invulnUntil; }
-	public void playerHit() { notifyDeath(); }
-
-    @Override
-    public void onAlienKilledAt(int cx, int cy) { notifyAlienKilledAt(cx, cy); }
-
-    public int getShipCenterX() {
-		if (ship == null) return VIRTUAL_WIDTH / 2;
-		return ship.getX() + ship.getWidth() / 2;
-	}
-
-    public java.util.List<Entity> getEntities() { return entities; }
-
-	public void notifyDeath() {
-		long now = SystemTimer.getTime();
-		if (selectedShipIndex == 2 && now < invulnUntil) return;
-
-		if (selectedShipIndex == 2 && shieldActive) {
-			shieldActive = false;
-			invulnUntil  = now + 1000 /* + lvShield*250 (현재 미사용) */;
-			showToast("Block!", 1200);
-			return;
-		}
-
-		lives = Math.max(0, lives - 1);
-		if (lives > 0) {
-			long extra = 0; // lvShield * 250; // (현재 미사용)
-			invulnUntil = now + 1000 + extra;
-			showToast("Hit! 남은 목숨: " + lives, 1200);
-			return;
-		}
-
-		lastRunElapsedMs = (runStartTime == 0) ? -1 : (now - runStartTime);
-		message = "Out of lives! Try again?";
-
-		saveData.totalKillsOverall = Math.max(saveData.totalKillsOverall, totalKills);
-		saveNow();
-
-        currentScreen = new MainMenuScreen(this);
-	}
-
-	public void notifyWin() {
-		long now = SystemTimer.getTime();
-		long elapsed = (runStartTime == 0) ? 0 : (now - runStartTime);
-		lastRunElapsedMs = elapsed;
-
-		int bonus = lives * 500;
-		int timeBonus = 0;
-		if (elapsed > 0) {
-			long sec = elapsed / 1000;
-			timeBonus = Math.max(0, 1000 - (int)(sec * 10));
-		}
-		addScore(bonus + timeBonus);
-
-		if (!achClear100 && shotsFiredRun <= 100) { achClear100 = true; showToast("도전과제 달성: 100발 안에 클리어!", 2500); }
-		if (!achClear1Min && elapsed <= 60_000)   { achClear1Min = true; showToast("도전과제 달성: 1분 안에 클리어!", 2500); }
-
-		if (selectedLevel >= 1 && selectedLevel < 5) {
-			if (!levelUnlocked[selectedLevel]) {
-				levelUnlocked[selectedLevel] = true;
-				showToast("레벨 " + (selectedLevel + 1) + " 해금!", 1800);
-			}
-		}
-
-		int rpGain = 2 + Math.max(0, lives / 2);
-		reinforcePoints += rpGain;
-		saveData.reinforcePoints = reinforcePoints;
-		showToast("강화 포인트 +" + rpGain + " (보유: " + reinforcePoints + ")", 1500);
-
-		coins += COIN_ON_CLEAR;
-		showToast("코인 +" + COIN_ON_CLEAR + " (보유: " + coins + ")", 1500);
-
-		message = "Well done! You Win!";
-
-		int highest = 1;
-		for (int i = 0; i < 5; i++) if (levelUnlocked[i]) highest = i + 1;
-		saveData.highestUnlockedLevel = Math.max(saveData.highestUnlockedLevel, highest);
-		if (saveData.bestTimeMs < 0 || elapsed < saveData.bestTimeMs) saveData.bestTimeMs = (int) elapsed;
-		saveData.achClear100 = saveData.achClear100 || achClear100;
-		saveData.achClear1Min = saveData.achClear1Min || achClear1Min;
-		saveData.achKill10 = saveData.achKill10 || achKill10;
-		saveData.totalKillsOverall = Math.max(saveData.totalKillsOverall, totalKills);
-
-		submitScoreToLeaderboard(saveData.playerName, score);
-		saveNow();
-
-        currentScreen = new MainMenuScreen(this);
-	}
-
-	public void notifyAlienKilled() {
-		addScore(SCORE_ALIEN);
-		coins += COIN_PER_ALIEN;
-		notifyAlienKilledAt(-1, -1);  // 승리 판정/드랍은 별도
-	}
-
-	public void notifyAlienKilledAt(int centerX, int centerY) {
-		totalKills++;
-		killsSinceLastShield++;
-
-		if (!achKill10 && totalKills >= 10) {
-			achKill10 = true;
-			showToast("도전과제 달성: 적 10마리 격파!", 2000);
-			saveData.achKill10 = true;
-			saveNow();
-		}
-
-		if (selectedShipIndex == 2) {
-			if (killsSinceLastShield >= 30 && !shieldActive) {
-				shieldActive = true;
-				killsSinceLastShield = 0;
-				showToast("방어막 획득! (적 30마리 처치)", 2000);
-			}
-		}
-
-		for (int i = 0; i < entities.size(); i++) {
-			Entity e = entities.get(i);
-			if (e instanceof AlienEntity) e.setHorizontalMovement(e.getHorizontalMovement()*1.02);
-		}
-
-		// 레벨별 드랍 확률 적용
-		if (centerX >= 0 && rng.nextDouble() < levelBombDrop) {
-			int spriteHalf = 12;
-			spawnBombItemAt(centerX - spriteHalf, centerY - spriteHalf);
-		}
-		if (centerX >= 0 && rng.nextDouble() < levelLaserDrop) {
-			int spriteHalf = 12;
-			spawnLaserItemAt(centerX - spriteHalf, centerY - spriteHalf);
-		}
-	}
-
-	private void checkWinCondition() {
-		int aliveAliens = 0;
-		for (int i = 0; i < entities.size(); i++) {
-			if (entities.get(i) instanceof AlienEntity) aliveAliens++;
-		}
-		if (aliveAliens == 0) {
-			if (!bossSpawned) {
-				spawnBoss();
-				return;
-			}
-			if (bossDefeated) notifyWin();
-		}
-	}
-
-	private void spawnBoss() {
-		if (bossSpawned) return;
-		int bx = (VIRTUAL_WIDTH - 120) / 2;
-		int by = 60;
-		boss = new BossEntity(this, bx, by);
-		entities.add(boss);
-		bossSpawned = true;
-		showToast("보스 등장!", 1500);
-	}
-
-	public void onBossDefeated(BossEntity b) {
-        // 실제 보스 오브젝트인지 확인
-        if (boss == b) {
-            bossDefeated = true;
-            // 원하면 추가 보너스
-            addScore(1000);         // 예시: 보스 보너스
-            coins += 100;           // 예시: 코인 보너스
-            showToast("보스를 처치했습니다!", 2000);
-        }
-	}
-    @Override
-    public void onPlayerHit() { playerHit(); }
-
-	/* ===== 발사/아이템 ===== */
-	public void tryToFire() {
-		if (System.currentTimeMillis() - lastFire < firingInterval) return;
-		lastFire = System.currentTimeMillis();
-
-		if (selectedShipIndex == 1) {
-			ShotEntity L = new ShotEntity(this, "sprites/shot.gif",
-					(int)(ship.getX() + 4),  (int)(ship.getY() - 30));
-			ShotEntity R = new ShotEntity(this, "sprites/shot.gif",
-					(int)(ship.getX() + 16), (int)(ship.getY() - 30));
-			entities.add(L); entities.add(R);
-			shotsFiredRun += 2;
-		} else {
-			ShotEntity shot = new ShotEntity(this, "sprites/shot.gif",
-					(int)(ship.getX() + 10), (int)(ship.getY() - 30));
-			entities.add(shot);
-			shotsFiredRun += 1;
-		}
-	}
-
-    /** B 키로 폭탄 발사 시 호출 */
-    private void tryToFireBomb() {
-        // 1) 보유 수량 체크
-        if (bombCount <= 0) {
-            showToast("폭탄이 없습니다!", 800);
-            return;
-        }
-
-        // 2) 쿨타임 체크
-        long now = System.currentTimeMillis();
-        if (now - lastBombFire < bombFireInterval) {
-            return;
-        }
-        lastBombFire = now;
-
-        // 3) 배가 없으면 발사 불가
-        if (ship == null) {
-            return;
-        }
-
-        // 4) 배 중앙 약간 위에서 발사체 생성
-        int bx = (int) (ship.getX() + ship.getWidth() / 2.0 - 8);
-        int by = (int) (ship.getY() - 20);
-
-        // Game 은 GameContext 를 구현하고 있다고 가정
-        BombEntity proj = new BombEntity(this, bx, by);
-        proj.setMode(BombEntity.Mode.PROJECTILE);
-        entities.add(proj);
-
-        // 5) 보유 폭탄 수 감소
-        bombCount--;
-    }
-
-
-	private void tryToFireLaser() {
-		if (laserCount <= 0) { showToast("레이저가 없습니다!", 800); return; }
-		if (System.currentTimeMillis() - lastLaserUse < laserCooldown) return;
-		lastLaserUse = System.currentTimeMillis();
-		laserCount = 0;
-
-		// 레이저 빔 0.5초 유지 (LaserEntity가 매 프레임 tickLaserAt 호출)
-		int cx = getShipCenterX();
-		entities.add(LaserEntity.createActiveBeam(this, cx, 500));
-		showToast("LASER!", 300);
-	}
-
-	private Entity pickRandomAlien() {
-		ArrayList<Entity> aliens = new ArrayList<>();
-		for (int i=0;i<entities.size();i++) if (entities.get(i) instanceof AlienEntity) aliens.add(entities.get(i));
-		if (aliens.isEmpty()) return null;
-		return aliens.get(rng.nextInt(aliens.size()));
-	}
-
-    /**
-     * 실제 외계인 총알 발사 (SpawnManager가 타이밍만 관리하고, 이 메소드를 호출)
-     * @return 총알을 발사했으면 true, 발사할 외계인이 없으면 false
-     */
-    public boolean fireRandomAlienShot() {
-        Entity shooter = pickRandomAlien();   // 기존 pickRandomAlien() 재사용
-        if (shooter == null) {
-            return false;
-        }
-        int sx = (int)(shooter.getX() + 12);
-        int sy = (int)(shooter.getY() + 20);
-        entities.add(new AlienShotEntity(this, "sprites/shot.gif", sx, sy));
-        return true;
-    }
-
-
-    public void spawnAsteroidRandom(java.util.Random rng) {
-        int x = rng.nextInt(Math.max(1, VIRTUAL_WIDTH - 32));
-        int y = -32;
-        double fallSpeed = 500;
-        entities.add(new AsteroidEntity(this, x, y, fallSpeed));
-    }
-
-    public void spawnBlackHoleAroundPlayer(java.util.Random rng) {
-        int w = 48, h = 48;
-
-        double sx = (ship != null) ? ship.getX() + ship.getWidth() / 2.0 : VIRTUAL_WIDTH / 2.0;
-        double sy = (ship != null) ? ship.getY() + ship.getHeight() / 2.0 : VIRTUAL_HEIGHT / 2.0;
-
-        double minD = 120.0, maxD = 220.0;
-        double ang  = rng.nextDouble() * Math.PI * 2.0;
-        double dist = minD + rng.nextDouble() * (maxD - minD);
-
-        int x = (int) Math.round(sx + Math.cos(ang) * dist) - w / 2;
-        int y = (int) Math.round(sy + Math.sin(ang) * dist) - h / 2;
-
-        if (x < 0) x = 0;
-        if (y < 0) y = 0;
-        if (x > VIRTUAL_WIDTH  - w) x = VIRTUAL_WIDTH  - w;
-        if (y > VIRTUAL_HEIGHT - h) y = VIRTUAL_HEIGHT - h;
-
-        entities.add(new BlackHoleEntity(this, x, y, blackHoleRadius, 0.60f, blackHoleLifeMs));
-    }
-
-	private void spawnBombItemAt(int x, int y) { entities.add(new BombEntity(this, x, y)); }
-	private void spawnLaserItemAt(int x, int y) { entities.add(LaserEntity.createDropItem(this, x, y)); }
-
-	public void activateBombAt(int cx, int cy) {
-		int radius = 160 + lvBomb * 20;
-		ArrayList<Entity> toRemove = new ArrayList<>();
-		for (Entity e : entities) {
-			if (e instanceof AlienEntity || e instanceof AlienShotEntity || e instanceof AsteroidEntity) {
-				double ex = e.getX() + e.getWidth()/2.0;
-				double ey = e.getY() + e.getHeight()/2.0;
-				double dx = ex - cx, dy = ey - cy;
-				if (dx*dx + dy*dy <= (long)radius*radius) toRemove.add(e);
-			} else if (e instanceof BossEntity) {
-				double ex = e.getX() + e.getWidth()/2.0;
-				double ey = e.getY() + e.getHeight()/2.0;
-				double dx = ex - cx, dy = ey - cy;
-				if (dx*dx + dy*dy <= (long)radius*radius) {
-					((BossEntity)e).takeDamage(80);
-				}
-			}
-		}
-		for (Entity e: toRemove) { if (e instanceof AlienEntity) notifyAlienKilled(); removeEntity(e); }
-		showToast("BOOM!", 700);
-	}
-
-	/** 레이저 지속 판정 (LaserEntity에서 매 프레임 호출) */
-	public void tickLaserAt(int cx, int halfWidth) {
-		int left = cx - (halfWidth + lvLaser * 4);
-		int right = cx + (halfWidth + lvLaser * 4);
-
-		ArrayList<Entity> toRemove = new ArrayList<>();
-		for (Entity e : entities) {
-			if (e instanceof AlienEntity || e instanceof AlienShotEntity || e instanceof AsteroidEntity) {
-				int ex = e.getX() + e.getWidth()/2;
-				if (ex >= left && ex <= right) toRemove.add(e);
-			} else if (e instanceof BossEntity) {
-				int ex = e.getX() + e.getWidth()/2;
-				if (ex >= left && ex <= right) {
-					((BossEntity)e).takeDamage(10); // 프레임당 누적 데미지
-				}
-			}
-		}
-		for (Entity e: toRemove) { if (e instanceof AlienEntity) notifyAlienKilled(); removeEntity(e); }
-	}
-
-	public float getBlackHoleSpeedScaleFor(double cx, double cy) {
-		for (Entity e : entities) {
-			if (e instanceof BlackHoleEntity) {
-				BlackHoleEntity bh = (BlackHoleEntity) e;
-				double bx = e.getX() + e.getWidth()/2.0, by = e.getY() + e.getHeight()/2.0;
-				double dx = bx - cx, dy = by - cy;
-				double distSq = dx*dx + dy*dy, r = bh.getRadius();
-				if (distSq <= r*r) return 0.5f;
-			}
-		}
-		return 1.0f;
-	}
-
-	/* ===== HUD/메뉴/렌더 ===== */
-	private void drawLives(Graphics2D g) {
-		int x = 10, y = 10, gap = 5;
-		for (int i=0;i<maxLives;i++) {
-			Sprite heart = (i < lives) ? heartFullSprite : heartEmptySprite;
-			if (heart != null) heart.draw(g, x + i * (heart.getWidth() + gap), y);
-		}
-		g.setFont(new Font("SansSerif", Font.BOLD, 14));
-		g.setColor(Color.WHITE);
-		// 왼쪽 하단으로 이동
-		g.drawString("Bomb: " + bombCount + "/" + bombMax + "  (B키)", 10, 560);
-		g.drawString("Laser: " + laserCount + "/" + laserMax + "  (L키)", 10, 580);
-		g.drawString("RP: " + reinforcePoints, 10, 78);
-		g.drawString("Coins: " + coins, 10, 96);
-	}
-
-	private void drawBossHP(Graphics2D g) {
-		if (boss == null || boss.isDead()) return;
-		int cur = boss.getHP();
-		int max = boss.getMaxHP();
-
-		int barW = 400, barH = 14;
-		int x = (VIRTUAL_WIDTH - barW) / 2;
-		int y = 36;
-
-		g.setColor(new Color(0,0,0,160));
-		g.fillRoundRect(x-2, y-2, barW+4, barH+4, 8, 8);
-
-		double ratio = Math.max(0, Math.min(1.0, cur / (double) max));
-		int fill = (int)(barW * ratio);
-
-		g.setColor(new Color(200, 50, 50));
-		g.fillRoundRect(x, y, fill, barH, 8, 8);
-
-		g.setColor(Color.WHITE);
-		g.drawString("BOSS", x, y-6);
-	}
-
 
 	private void drawToast(Graphics2D g) {
         // 문자 자체로 표시 여부 판단
@@ -854,8 +257,9 @@ public class Game extends Canvas implements GameContext {
     public void gameLoop() {
         long lastLoopTime = SystemTimer.getTime();
         while (gameRunning) {
-            long delta = SystemTimer.getTime() - lastLoopTime;
-            lastLoopTime = SystemTimer.getTime();
+            long now   = SystemTimer.getTime();
+            long delta = now - lastLoopTime;
+            lastLoopTime = now;
 
             updateFps(delta);
 
@@ -867,19 +271,17 @@ public class Game extends Canvas implements GameContext {
             int oy = offsetYForScale(s);
             Graphics2D vg = createVirtualGraphics(g, s, ox, oy);
 
-            if (currentScreen == null) {
-                updateEntities(delta);
+            if (currentScreen != null) {
+                currentScreen.update(delta);   // ← 로직
+                currentScreen.render(vg);
             }
 
-            renderEntities(vg);
-            renderHudAndMenus(vg);
-            postRenderLogic(delta);
+            drawToast(vg);
 
             vg.dispose();
             g.dispose();
             strategy.show();
 
-            processPlayerInput(delta);
             SystemTimer.sleep(10);
         }
     }
@@ -922,156 +324,22 @@ public class Game extends Canvas implements GameContext {
         return vg;
     }
 
-    /** 모든 엔티티를 delta(ms)에 맞춰 이동 */
-    private void updateEntities(long delta) {
-        if (world != null) {
-            world.moveAll(delta);
-        }
-    }
-
-    /**
-     * 엔티티 렌더 순서:
-     * 1) 블랙홀
-     * 2) 일반 엔티티 (레이저 BEAM 제외)
-     * 3) 레이저 BEAM (맨 앞)
-     */
-    private void renderEntities(Graphics2D vg) {
-        // 1) 블랙홀 먼저
-        for (int i = 0; i < entities.size(); i++) {
-            Entity e = entities.get(i);
-            if (e instanceof BlackHoleEntity) {
-                e.draw(vg);
-            }
-        }
-
-        // 2) 블랙홀 / 레이저 BEAM 제외한 나머지
-        for (int i = 0; i < entities.size(); i++) {
-            Entity e = entities.get(i);
-            if (e instanceof BlackHoleEntity) continue;
-            if (e instanceof LaserEntity && ((LaserEntity) e).isBeam()) continue;
-            e.draw(vg);
-        }
-
-        // 3) 레이저 BEAM만 따로 맨 앞에
-        for (int i = 0; i < entities.size(); i++) {
-            Entity e = entities.get(i);
-            if (e instanceof LaserEntity && ((LaserEntity) e).isBeam()) {
-                e.draw(vg);
-            }
-        }
-    }
-
-    /**
-     * HUD(플레이 중) 또는 메뉴/도전과제/강화/상점(대기 상태) 렌더
-     * + 토스트 메시지
-     */
-    private void renderHudAndMenus(Graphics2D vg) {
-        if (currentScreen != null) {
-            // 메뉴/선택/상점/강화 화면은 Screen이 전부 그린다
-            currentScreen.render(vg);
-        } else {
-            // 게임 플레이 중일 때 HUD만 그린다
-            drawLives(vg);
-            drawBossHP(vg);
-        }
-
-        // 토스트는 항상 맨 위에
-        drawToast(vg);
-    }
-
-
-    /**
-     * 렌더 후에 수행되는 게임 로직:
-     * - 적 사격 / 유성·블랙홀 스폰
-     * - 충돌 검사
-     * - 제거 목록 처리
-     * - 승리 조건 체크
-     * - logicRequiredThisLoop 처리
-     */
-    private void postRenderLogic(long delta) {
-        if (currentScreen == null) {
-            long now = SystemTimer.getTime();
-
-            // 1) 적 사격 / 유성 / 블랙홀 스폰 타이밍 처리
-            if (spawnManager != null) {
-                spawnManager.update(now);
-            }
-
-            // 2) 충돌 처리 + logicRequiredThisLoop(행 이동 등) 처리
-            if (world != null) {
-                world.handleCollisions();
-                world.applyLogicIfNeeded();
-            }
-
-            // 3) 승리 조건(보스 포함) 확인
-            checkWinCondition();
-        }
-
-        if (world != null) {
-            world.flushRemovals();
-        }
-    }
-
-    /**
-     * 키 입력 상태 플래그(left/right/fire/bomb/laser)를 바탕으로
-     * ship 이동/공격을 처리
-     */
-    private void processPlayerInput(long delta) {
-        // 배가 없으면 아무것도 안 함
-        if (ship != null) {
-            ship.setHorizontalMovement(0);
-        }
-
-        if (currentScreen != null) {
-            // 메뉴/대기 상태에서는 입력으로 배를 움직이지 않음
-            return;
-        }
-
-        double effSpeed = moveSpeed;
-
-        // 블랙홀 감속 적용
-        if (ship != null) {
-            double cx = ship.getX() + ship.getWidth() / 2.0;
-            double cy = ship.getY() + ship.getHeight() / 2.0;
-            float scale = getBlackHoleSpeedScaleFor(cx, cy);
-            effSpeed *= scale;
-        }
-
-        // 좌우 이동
-        if (leftPressed && !rightPressed) {
-            if (ship != null) ship.setHorizontalMovement(-effSpeed);
-        } else if (rightPressed && !leftPressed) {
-            if (ship != null) ship.setHorizontalMovement(effSpeed);
-        }
-
-        // 공격/폭탄/레이저 발사
-        if (firePressed)  {
-            tryToFire();
-        }
-        if (bombPressed)  {
-            tryToFireBomb();
-        }
-        if (laserPressed) {
-            tryToFireLaser();
-        }
-    }
-
     /* ===== 입력 ===== */
 	private class KeyInputHandler extends KeyAdapter {
 		public void keyPressed(KeyEvent e) {
-			if (e.getKeyCode() == KeyEvent.VK_F11) { setFullscreen(!fullscreen); return; } // 전체화면 토글
-			if (e.getKeyCode() == KeyEvent.VK_LEFT)  leftPressed = true;
-			if (e.getKeyCode() == KeyEvent.VK_RIGHT) rightPressed = true;
-			if (e.getKeyCode() == KeyEvent.VK_SPACE) firePressed = true;
-			if (e.getKeyCode() == KeyEvent.VK_B)     bombPressed = true;
-			if (e.getKeyCode() == KeyEvent.VK_L)     laserPressed = true;
+            // F11은 여전히 Game 직접 처리
+            if (e.getKeyCode() == KeyEvent.VK_F11) {
+                setFullscreen(!fullscreen);
+                return;
+            }
+            if(currentScreen != null) {
+                currentScreen.onKeyPressed(e);
+            }
 		}
 		public void keyReleased(KeyEvent e) {
-			if (e.getKeyCode() == KeyEvent.VK_LEFT)  leftPressed = false;
-			if (e.getKeyCode() == KeyEvent.VK_RIGHT) rightPressed = false;
-			if (e.getKeyCode() == KeyEvent.VK_SPACE) firePressed = false;
-			if (e.getKeyCode() == KeyEvent.VK_B)     bombPressed = false;
-			if (e.getKeyCode() == KeyEvent.VK_L)     laserPressed = false;
+            if (currentScreen != null) {
+                currentScreen.onKeyReleased(e);
+            }
 		}
 	}
 
@@ -1085,11 +353,9 @@ public class Game extends Canvas implements GameContext {
     public void startGameFromMenu(int level, int shipIndex) {
         this.selectedLevel = level;
         this.selectedShipIndex = shipIndex;
-        applyShipPreset(shipIndex);
         saveData.lastSelectedShipIndex = shipIndex;
         saveNow();
-        startGame();           // 네가 이미 가지고 있는 startGame()
-        setCurrentScreen(null); // 인게임으로 진입
+        this.currentScreen = new PlayScreen(this, level, shipIndex);
     }
 
     public void tryUpgradeSpeedFromScreen()   { tryUpgrade(() -> lvSpeed++ , lvSpeed); }
@@ -1115,9 +381,6 @@ public class Game extends Canvas implements GameContext {
         showToast("스킨 장착: " + skins[idx].name, 900);
     }
 
-    @Override public boolean collectBomb() { return collectBombInternal(); }
-
-    @Override public boolean collectLaser() { return collectLaserInternal(); }
 
 	private void addScore(int delta){ if (delta>0) score += delta; }
 
@@ -1133,13 +396,12 @@ public class Game extends Canvas implements GameContext {
 
     // 인게임 여부를 외부에서 쓸 수 있게 공개
     public boolean isInGame() {
-        return currentScreen == null;
+        return currentScreen instanceof PlayScreen;
     }
 
     // 기존 시그니처를 깨지 않으면서 내부 구현만 변경
     public boolean isWaitingForMenu() {
-        // 메뉴(= Screen이 떠 있음)일 때 true
-        return !isInGame();
+        return currentScreen instanceof MainMenuScreen;
     }
 
 
@@ -1151,7 +413,7 @@ public class Game extends Canvas implements GameContext {
 	private interface Inc { void go(); }
 
 	private void tryUpgrade(Inc action, int currentLv) {
-		if (currentLv >= REINF_MAX) { showToast("이미 최대 레벨입니다.", 900); return; }
+		if (currentLv >= UpgradeBalance.REINF_MAX) { showToast("이미 최대 레벨입니다.", 900); return; }
 		if (reinforcePoints <= 0) { showToast("강화 포인트가 부족합니다.", 900); return; }
 		reinforcePoints--;
 		action.go();
@@ -1217,73 +479,23 @@ public class Game extends Canvas implements GameContext {
     }
 
     private void resetSaveAndRuntime() {
+        // 1) 저장 파일 초기화
         saveManager.reset();
+
+        // 2) 메모리상의 saveData도 새로 만들기
+        this.saveData = new SaveState();
+
+        // 3) 강화/상점 시스템을 새 saveData 기반으로 다시 구성
         reinforceSystem = ReinforceSystem.fromSave(saveData);
         shopSystem      = ShopSystem.fromSave(saveData, BASE_SKINS);
-        this.saveData = new SaveState();
-        resetRuntimeState();   // lives, score, coins, skins, boss 등 리셋
+
+        // 4) 세이브 내용을 Game의 필드에 반영
         applySaveToRuntime();
+
+        // 5) 안내 토스트
         showToast("저장된 데이터가 초기화되었습니다.", 1400);
     }
 
-    /** 폭탄 아이템 습득 처리(내부용) */
-    private boolean collectBombInternal() {
-        if (bombCount < bombMax) {
-            bombCount++;
-            showToast("폭탄 획득! (" + bombCount + "/" + bombMax + ")", 800);
-            return true;
-        } else {
-            showToast("폭탄이 가득 찼어요!", 800);
-            return false;
-        }
-    }
-    /** 레이저 아이템 습득 처리(내부용) */
-    private boolean collectLaserInternal() {
-        if (laserCount < laserMax) {
-            laserCount = 1; // 레이저는 1개만
-            showToast("레이저 획득! (L키로 사용)", 900);
-            return true;
-        } else {
-            showToast("레이저는 1개만 소지 가능!", 900);
-            return false;
-        }
-    }
-
-    /** 이번 플레이(런) 동안만 의미가 있는 런타임 상태 초기화 */
-    private void resetRuntimeState() {
-        // 레벨/기체 선택
-        selectedLevel = -1;
-        selectedShipIndex = -1;
-
-        // 이번 런 통계
-        totalKills = 0;
-        shotsFiredRun = 0;
-        lastRunElapsedMs = -1;
-        runStartTime = 0;
-
-        // 도전과제 플래그 (이번 런 기준)
-        achKill10 = false;
-        achClear100 = false;
-        achClear1Min = false;
-
-        // 플레이어 상태
-        lives = maxLives;
-        shieldActive = false;
-        invulnUntil = 0;
-        killsSinceLastShield = 0;
-
-        // 인벤토리
-        bombCount = 0;
-        laserCount = 0;
-
-        // 점수
-        score = 0;
-
-        // 보스 상태
-        boss = null;
-        bossSpawned = false;
-        bossDefeated = false;
-    }
     /** saveData(영구 저장 값)를 런타임 필드들에 적용 */
     private void applySaveToRuntime() {
         // 1) 레벨 해금 상태
@@ -1309,11 +521,11 @@ public class Game extends Canvas implements GameContext {
 
         // 4) 강화
         reinforcePoints = saveData.reinforcePoints;
-        lvSpeed    = Math.min(REINF_MAX, saveData.lvSpeed);
-        lvFireRate = Math.min(REINF_MAX, saveData.lvFireRate);
-        lvShield   = Math.min(REINF_MAX, saveData.lvShield);
-        lvBomb     = Math.min(REINF_MAX, saveData.lvBomb);
-        lvLaser    = Math.min(REINF_MAX, saveData.lvLaser);
+        lvSpeed    = Math.min(UpgradeBalance.REINF_MAX, saveData.lvSpeed);
+        lvFireRate = Math.min(UpgradeBalance.REINF_MAX, saveData.lvFireRate);
+        lvShield   = Math.min(UpgradeBalance.REINF_MAX, saveData.lvShield);
+        lvBomb     = Math.min(UpgradeBalance.REINF_MAX, saveData.lvBomb);
+        lvLaser    = Math.min(UpgradeBalance.REINF_MAX, saveData.lvLaser);
 
         // 5) 코인/스킨
         coins = Math.max(0, saveData.coins);
@@ -1337,19 +549,10 @@ public class Game extends Canvas implements GameContext {
         }
     }
 
-    public long getAlienFireIntervalMs() {
-        return alienFireInterval;
+    public int getLvLaser() {
+        return lvLaser;
     }
-
-    public long getAsteroidIntervalMs() {
-        return asteroidInterval;
-    }
-
-    public long getBlackHoleIntervalMs() {
-        return blackHoleInterval;
-    }
-
+    public int getLvBomb()  { return lvBomb; }
 
     public static void main(String[] args) { Game g = new Game(); g.gameLoop(); }
-
 }

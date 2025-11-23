@@ -4,10 +4,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Color;
 
-import org.newdawn.spaceinvaders.Game;
-import org.newdawn.spaceinvaders.Sprite;
-import org.newdawn.spaceinvaders.SpriteStore;
-import org.newdawn.spaceinvaders.SystemTimer;
+import org.newdawn.spaceinvaders.*;
 
 /**
  * 블랙홀 엔티티
@@ -15,7 +12,7 @@ import org.newdawn.spaceinvaders.SystemTimer;
  * - 여기서는 위치/수명/렌더만 관리한다.
  */
 public class BlackHoleEntity extends Entity {
-    private final Game game;
+    private final GameContext game;
 
     private final double radius;       // 감속 반경(시각적/논리적)
     private final double strength;     // (지금은 Game에서 0.5 고정 스케일 사용, 보관만)
@@ -23,7 +20,7 @@ public class BlackHoleEntity extends Entity {
     private final long lifetimeMs;     // 지속 시간(ms)
     private final Sprite sprite;       // 스프라이트 (gif)
 
-    public BlackHoleEntity(Game game, int x, int y,
+    public BlackHoleEntity(GameContext game, int x, int y,
                            double radius, double strength, long lifetimeMs) {
         super("sprites/blackhole.gif", x, y);
         this.game = game;

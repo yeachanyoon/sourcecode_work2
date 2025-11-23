@@ -1,12 +1,13 @@
 package org.newdawn.spaceinvaders.entity;
 
 import org.newdawn.spaceinvaders.Game;
+import org.newdawn.spaceinvaders.GameContext;
 
 public class AsteroidEntity extends Entity {
-    private final Game game;
+    private final GameContext game;
     private final double fallSpeed;
 
-    public AsteroidEntity(Game game, int x, int y, double fallSpeed) {
+    public AsteroidEntity(GameContext game, int x, int y, double fallSpeed) {
         super("sprites/asteroid.png", x, y); // 프로젝트 경로에 맞게 유지
         this.game = game;
         this.fallSpeed = fallSpeed;
@@ -40,7 +41,7 @@ public class AsteroidEntity extends Entity {
 
         // 배랑 부딪히면 배는 피해, 유성은 제거 (원하면 유지/조정)
         if (other instanceof ShipEntity) {
-            game.playerHit();
+            game.onPlayerHit();
             game.removeEntity(this);
         }
     }

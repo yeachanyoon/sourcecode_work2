@@ -5,12 +5,13 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
 import org.newdawn.spaceinvaders.Game;
+import org.newdawn.spaceinvaders.GameContext;
 
 public class AlienShotEntity extends Entity {
-    private final Game game;
+    private final GameContext game;
     private double bulletSpeed = 400; // 아래로 이동
 
-    public AlienShotEntity(Game game, String sprite, int x, int y) {
+    public AlienShotEntity(GameContext game, String sprite, int x, int y) {
         super(sprite, x, y);   // 예: "sprites/shot.gif"
         this.game = game;
         this.dy = bulletSpeed;
@@ -33,7 +34,7 @@ public class AlienShotEntity extends Entity {
         if (other instanceof ShipEntity) {
             game.removeEntity(this);
             if (game.isPlayerInvincible()) return;
-            game.playerHit();
+            game.onPlayerHit();
         }
     }
 
