@@ -29,7 +29,7 @@ import org.newdawn.spaceinvaders.screen.Screen;
 
 public class Game extends Canvas {
 
-    private Screen currentScreen;
+    private transient Screen currentScreen;
 
     private String toastText = null;
     private long   toastUntil = 0;
@@ -42,12 +42,12 @@ public class Game extends Canvas {
 
     private int score = 0;
 
-    private Sprite ship1Sprite, ship2Sprite, ship3Sprite, ship3ProSprite;
+    private transient Sprite ship1Sprite, ship2Sprite, ship3Sprite, ship3ProSprite;
 
     public static final int VIRTUAL_WIDTH  = 800;
 	public static final int VIRTUAL_HEIGHT = 600;
 
-	private BufferStrategy strategy;
+	private transient BufferStrategy strategy;
 	private boolean gameRunning = true;
 
 	private long lastFpsTime;
@@ -57,14 +57,14 @@ public class Game extends Canvas {
 
 	// === Fullscreen & scaling ===
 	private boolean fullscreen = false;
-	private java.awt.GraphicsDevice gfxDev =
+	private transient java.awt.GraphicsDevice gfxDev =
 			java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
 
-    private SaveManager saveManager = new SaveManager();
-    private SaveState saveData = new SaveState();
+    private transient SaveManager saveManager = new SaveManager();
+    private transient SaveState saveData = new SaveState();
 
-    private ReinforceSystem reinforceSystem;
-    private ShopSystem shopSystem;
+    private transient ReinforceSystem reinforceSystem;
+    private transient ShopSystem shopSystem;
 
     // 스킨 정의용
     private static final ShopSystem.Skin[] BASE_SKINS = {
@@ -77,9 +77,9 @@ public class Game extends Canvas {
 	private int selectedLevel = -1;
 
 	// 미리보기/하트
-	private Sprite heartFullSprite, heartEmptySprite;
+	private transient Sprite heartFullSprite, heartEmptySprite;
 
-    private HudRenderer hudRenderer;
+    private transient HudRenderer hudRenderer;
 
 	public static class RankRow { public final String name; public final int score; public RankRow(String n,int s){name=n;score=s;} }
 	private static final int LEADERBOARD_MAX = 10;
@@ -100,7 +100,7 @@ public class Game extends Canvas {
 		boolean owned;
 		Skin(String n, String ref, int price, boolean owned){this.name=n; this.spriteRef=ref; this.price=price; this.owned=owned;}
 	}
-	private Skin[] skins = new Skin[] {
+	private transient Skin[] skins = new Skin[] {
 			new Skin("Blue",  "sprites/ship_blue.gif",  800, false),
 			new Skin("Gold",  "sprites/ship_gold.gif", 1200, false),
 			new Skin("Green", "sprites/ship_green.gif", 900,  false)
@@ -498,28 +498,18 @@ public class Game extends Canvas {
 
     /** saveData(영구 저장 값)를 런타임 필드들에 적용 */
     private void applySaveToRuntime() {
-        // 1) 레벨 해금 상태
-        for (int i = 0; i < 5; i++) {
-            levelUnlocked[i] = false;
-        }
-        int highest = Math.max(1, Math.min(5, saveData.highestUnlockedLevel));
-        for (int i = 0; i < highest; i++) {
-            levelUnlocked[i] = true;
-        }
+        // 1) 레벨 해금 상태 복원
+        applyLevelData();
 
-        // 2) 도전과제 플래그
+        // 2) 도전과제 플래그 복원
         achKill10    = saveData.achKill10;
         achClear100  = saveData.achClear100;
         achClear1Min = saveData.achClear1Min;
 
-        // 3) 마지막 선택 기체
-        if (saveData.lastSelectedShipIndex >= 0 && saveData.lastSelectedShipIndex <= 2) {
-            selectedShipIndex = saveData.lastSelectedShipIndex;
-        } else {
-            selectedShipIndex = -1;
-        }
+        // 3) 마지막 선택 기체 복원
+        applyShipData();
 
-        // 4) 강화
+        // 4) 강화 수치 복원
         reinforcePoints = saveData.reinforcePoints;
         lvSpeed    = Math.min(UpgradeBalance.REINF_MAX, saveData.lvSpeed);
         lvFireRate = Math.min(UpgradeBalance.REINF_MAX, saveData.lvFireRate);
@@ -527,23 +517,51 @@ public class Game extends Canvas {
         lvBomb     = Math.min(UpgradeBalance.REINF_MAX, saveData.lvBomb);
         lvLaser    = Math.min(UpgradeBalance.REINF_MAX, saveData.lvLaser);
 
-        // 5) 코인/스킨
+        // 5) 코인 및 스킨 상태 복원
+        applySkinData();
+    }
+    // --- 아래는 새로 추출된 Private Helper 메서드들 ---
+
+    private void applyLevelData() {
+        for (int i = 0; i < 5; i++) {
+            levelUnlocked[i] = false;
+        }
+        int highest = Math.max(1, Math.min(5, saveData.highestUnlockedLevel));
+        for (int i = 0; i < highest; i++) {
+            levelUnlocked[i] = true;
+        }
+    }
+
+    private void applyShipData() {
+        if (saveData.lastSelectedShipIndex >= 0 && saveData.lastSelectedShipIndex <= 2) {
+            selectedShipIndex = saveData.lastSelectedShipIndex;
+        } else {
+            selectedShipIndex = -1;
+        }
+    }
+
+    private void applySkinData() {
         coins = Math.max(0, saveData.coins);
         selectedSkinIndex = Math.max(0,
                 Math.min(saveData.selectedSkinIndex, skins.length - 1));
 
-        // 보유 스킨 배열 초기화
+        // 보유 스킨 상태 초기화
         for (int i = 0; i < skins.length; i++) {
             skins[i].owned = false;
         }
+
+        // CSV 파싱하여 보유 상태 적용
         if (saveData.ownedSkinsCsv != null && !saveData.ownedSkinsCsv.isEmpty()) {
             String[] bits = saveData.ownedSkinsCsv.split(",");
             for (int i = 0; i < Math.min(bits.length, skins.length); i++) {
+                // "1" 또는 "true"인 경우 보유 처리
                 if ("1".equals(bits[i]) || "true".equalsIgnoreCase(bits[i])) {
                     skins[i].owned = true;
                 }
             }
         }
+
+        // 선택 인덱스 유효성 검사
         if (selectedSkinIndex < 0 || selectedSkinIndex >= skins.length) {
             selectedSkinIndex = 0;
         }

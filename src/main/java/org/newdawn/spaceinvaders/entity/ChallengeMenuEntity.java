@@ -17,9 +17,11 @@ public class ChallengeMenuEntity extends Entity {
         this.game = game;
     }
 
-    public void move(long delta) { }
-    public void doLogic() { }
-    public void collidedWith(Entity other) { }
+
+
+    public void doLogic() {//no-op
+        }
+
 
     // ✅ 부모와 동일 시그니처로 수정: Graphics
     public void draw(Graphics g0) {

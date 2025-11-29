@@ -15,6 +15,7 @@ public class LevelSelectScreen extends AbstractMenuScreen {
     private final Button[] levelBtns = new Button[5];
 
     private final int highestUnlockedLevel;
+    private static final String FONT_NAME = "SansSerif";
 
     public LevelSelectScreen(Game game) {
         super(game);
@@ -53,11 +54,11 @@ public class LevelSelectScreen extends AbstractMenuScreen {
 
         g.setColor(new Color(220, 220, 220));
         drawCenteredString(g, "레벨 선택", 150,
-                new Font("SansSerif", Font.BOLD, 28));
+                new Font(FONT_NAME, Font.BOLD, 28));
 
         drawCenteredString(g,
                 "각 레벨을 클리어하면 다음 레벨이 해금됩니다.",
-                180, new Font("SansSerif", Font.PLAIN, 14));
+                180, new Font(FONT_NAME, Font.PLAIN, 14));
 
         for (int i = 0; i < levelBtns.length; i++) {
             levelBtns[i].draw(g);
@@ -74,7 +75,7 @@ public class LevelSelectScreen extends AbstractMenuScreen {
 
                 g.setColor(Color.WHITE);
                 Font old = g.getFont();
-                g.setFont(new Font("SansSerif", Font.BOLD, 14));
+                g.setFont(new Font(FONT_NAME, Font.BOLD, 14));
                 FontMetrics fm = g.getFontMetrics();
                 String lock = "잠김";
                 int tx = x + (w - fm.stringWidth(lock)) / 2;

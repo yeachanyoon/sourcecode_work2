@@ -132,7 +132,9 @@ public class LaserEntity extends PhysicalEntity {
     }
 
     @Override
-    public void doLogic() { }
+    public void doLogic() {
+        //no-op
+    }
 
     @Override
     public int getWidth()  { return (mode == Mode.ITEM) ? ITEM_W : beamHalfWidth * 2; }

@@ -16,6 +16,7 @@ public class ShopScreen extends AbstractMenuScreen {
     private final Button backBtn = new Button("← 뒤로");
     private final Button[] buyBtns;
     private final Button[] equipBtns;
+    private static final String FONT_NAME = "SansSerif";
 
     public ShopScreen(Game game) {
         super(game);
@@ -56,10 +57,10 @@ public class ShopScreen extends AbstractMenuScreen {
 
         g.setColor(new Color(230,230,230));
         drawCenteredString(g, "상점 (스킨)", 120,
-                new Font("SansSerif", Font.BOLD, 28));
+                new Font(FONT_NAME, Font.BOLD, 28));
 
         drawCenteredString(g, "코인: " + coins + "   (적 처치/클리어로 획득)",
-                150, new Font("SansSerif", Font.PLAIN, 16));
+                150, new Font(FONT_NAME, Font.PLAIN, 16));
 
         int startY = 200;
         int rowH = 90;
@@ -77,10 +78,10 @@ public class ShopScreen extends AbstractMenuScreen {
             if (preview != null) preview.draw(g, 160, y);
 
             g.setColor(Color.WHITE);
-            g.setFont(new Font("SansSerif", Font.BOLD, 16));
+            g.setFont(new Font(FONT_NAME, Font.BOLD, 16));
             g.drawString(game.getSkinName(i), 220, y+20);
 
-            g.setFont(new Font("SansSerif", Font.PLAIN, 14));
+            g.setFont(new Font(FONT_NAME, Font.PLAIN, 14));
             String status = game.getSkinStatusText(i); // "가격: 800", "보유", "장착중" 등
             g.drawString(status, 220, y+42);
 

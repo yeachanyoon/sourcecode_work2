@@ -9,7 +9,7 @@ import org.newdawn.spaceinvaders.SpriteStore;
 /** 보스 엔티티 */
 public class BossEntity extends PhysicalEntity {
     private final GameContext ctx;
-    private final Sprite sprite;
+    private final Sprite spriteBoss;
 
     private int maxHP = 800;
     private int hp    = maxHP;
@@ -20,11 +20,13 @@ public class BossEntity extends PhysicalEntity {
 
     private long lastShot     = 0;
     private long shotInterval = 900;
+    private static final String SPRITE_REF_BOSS = "sprites/Boss.png";
+    private static final String SPRITE_REF_SHOT = "sprites/shot.gif";
 
     public BossEntity(GameContext ctx, int x, int y) {
-        super("sprites/Boss.png", x, y);
+        super(SPRITE_REF_BOSS, x, y);
         this.ctx    = ctx;
-        this.sprite = SpriteStore.get().getSprite("sprites/Boss.png");
+        this.spriteBoss = SpriteStore.get().getSprite(SPRITE_REF_BOSS);
         setHorizontalMovement(speed);
         setVerticalMovement(0);
     }
@@ -53,15 +55,15 @@ public class BossEntity extends PhysicalEntity {
         int cx = getX() + getWidth() / 2;
         int cy = getY() + getHeight() - 10;
 
-        AlienShotEntity s0 = new AlienShotEntity(ctx, "sprites/shot.gif", cx, cy);
+        AlienShotEntity s0 = new AlienShotEntity(ctx, SPRITE_REF_SHOT, cx, cy);
         s0.setHorizontalMovement(0);
         ctx.addEntity(s0);
 
-        AlienShotEntity sL = new AlienShotEntity(ctx, "sprites/shot.gif", cx - 8, cy);
+        AlienShotEntity sL = new AlienShotEntity(ctx, SPRITE_REF_SHOT, cx - 8, cy);
         sL.setHorizontalMovement(-80);
         ctx.addEntity(sL);
 
-        AlienShotEntity sR = new AlienShotEntity(ctx, "sprites/shot.gif", cx + 8, cy);
+        AlienShotEntity sR = new AlienShotEntity(ctx, SPRITE_REF_SHOT, cx + 8, cy);
         sR.setHorizontalMovement(+80);
         ctx.addEntity(sR);
     }
@@ -82,11 +84,12 @@ public class BossEntity extends PhysicalEntity {
 
 
     public void draw(Graphics2D g) {
-        if (sprite != null) sprite.draw(g, getX(), getY());
+        if (spriteBoss != null) spriteBoss.draw(g, getX(), getY());
     }
 
     @Override
-    public void doLogic() { }
+    public void doLogic() { //no-op
+        }
 
     @Override
     public void collidedWith(Entity other) {

@@ -19,7 +19,9 @@ public class ReinforceSystem {
     private int lvBomb;
     private int lvLaser;
 
-    public ReinforceSystem() { }
+    public ReinforceSystem() {
+        //암시적 생성자
+    }
 
     public static ReinforceSystem fromSave(SaveState s) {
         ReinforceSystem rf = new ReinforceSystem();

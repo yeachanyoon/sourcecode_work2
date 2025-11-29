@@ -18,7 +18,7 @@ public class BlackHoleEntity extends PhysicalEntity {
     private final double strength;     // (지금은 Game에서 0.5 고정 스케일 사용, 보관만)
     private final long spawnTime;      // 생성 시각
     private final long lifetimeMs;     // 지속 시간(ms)
-    private final Sprite sprite;       // 스프라이트 (gif)
+    private final Sprite spriteBlackHole;       // 스프라이트 (gif)
 
     public BlackHoleEntity(GameContext game, int x, int y,
                            double radius, double strength, long lifetimeMs) {
@@ -29,7 +29,7 @@ public class BlackHoleEntity extends PhysicalEntity {
         this.lifetimeMs = lifetimeMs;
         this.spawnTime = SystemTimer.getTime();
 
-        this.sprite = SpriteStore.get().getSprite("sprites/blackhole.gif");
+        this.spriteBlackHole = SpriteStore.get().getSprite("sprites/blackhole.gif");
 
         setHorizontalMovement(0);
         setVerticalMovement(0);
@@ -48,14 +48,14 @@ public class BlackHoleEntity extends PhysicalEntity {
     public double getRadius()   { return radius; }
     public double getStrength() { return strength; }
 
-    public int getWidth()  { return (sprite != null) ? sprite.getWidth()  : 64; }
-    public int getHeight() { return (sprite != null) ? sprite.getHeight() : 64; }
+    public int getWidth()  { return (spriteBlackHole != null) ? spriteBlackHole.getWidth()  : 64; }
+    public int getHeight() { return (spriteBlackHole != null) ? spriteBlackHole.getHeight() : 64; }
 
     @Override
     public void draw(Graphics g0) {
         Graphics2D g = (Graphics2D) g0;
-        if (sprite != null && sprite.getWidth() > 0) {
-            sprite.draw(g, (int) getX(), (int) getY());
+        if (spriteBlackHole != null && spriteBlackHole.getWidth() > 0) {
+            spriteBlackHole.draw(g, (int) getX(), (int) getY());
         } else {
             int r = (int) radius;
             g.setColor(new Color(80, 80, 200, 150));

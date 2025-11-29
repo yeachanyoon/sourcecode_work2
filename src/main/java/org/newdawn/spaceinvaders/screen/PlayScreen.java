@@ -23,7 +23,7 @@ import static org.newdawn.spaceinvaders.Game.VIRTUAL_HEIGHT;
 public class PlayScreen implements Screen, GameContext {
 
     private final Game game;
-
+    private static final String SHOT_SPRITE = "sprites/shot.gif";
     // 인게임 엔티티 / 월드
     private final List<Entity> entities   = new ArrayList<>();
     private final List<Entity> removeList = new ArrayList<>();
@@ -223,7 +223,7 @@ public class PlayScreen implements Screen, GameContext {
         Entity shooter = aliens.get(rng.nextInt(aliens.size()));
         int sx = (int) (shooter.getX() + 12);
         int sy = (int) (shooter.getY() + 20);
-        entities.add(new AlienShotEntity(this, "sprites/shot.gif", sx, sy));
+        entities.add(new AlienShotEntity(this, SHOT_SPRITE, sx, sy));
         return true;
     }
 
@@ -535,15 +535,15 @@ public class PlayScreen implements Screen, GameContext {
         lastFire = System.currentTimeMillis();
 
         if (selectedShipIndex == 1) {
-            ShotEntity L = new ShotEntity(this, "sprites/shot.gif",
+            ShotEntity L = new ShotEntity(this, SHOT_SPRITE,
                     (int) (ship.getX() + 4), (int) (ship.getY() - 30));
-            ShotEntity R = new ShotEntity(this, "sprites/shot.gif",
+            ShotEntity R = new ShotEntity(this, SHOT_SPRITE,
                     (int) (ship.getX() + 16), (int) (ship.getY() - 30));
             entities.add(L);
             entities.add(R);
             shotsFiredRun += 2;
         } else {
-            ShotEntity shot = new ShotEntity(this, "sprites/shot.gif",
+            ShotEntity shot = new ShotEntity(this, SHOT_SPRITE,
                     (int) (ship.getX() + 10), (int) (ship.getY() - 30));
             entities.add(shot);
             shotsFiredRun += 1;

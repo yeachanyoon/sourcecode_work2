@@ -31,14 +31,7 @@ public final class LevelConfig {
     public static LevelConfig forLevel(int level) {
         switch (level) {
             case 1:
-            default:
-                // 기존 Game.applyLevelParams 의 기본값
-                return new LevelConfig(
-                        0.10,  // bombDrop
-                        0.06,  // laserDrop
-                        1300,  // alienFireInterval
-                        0.80   // alienSpeedMul
-                );
+
             case 2:
                 return new LevelConfig(
                         0.08,
@@ -66,6 +59,14 @@ public final class LevelConfig {
                         0.02,
                         900,
                         1.20
+                );
+            default:
+                // 기존 Game.applyLevelParams 의 기본값
+                return new LevelConfig(
+                        0.10,  // bombDrop
+                        0.06,  // laserDrop
+                        1300,  // alienFireInterval
+                        0.80   // alienSpeedMul
                 );
         }
     }

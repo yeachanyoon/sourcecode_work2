@@ -97,7 +97,7 @@ public class BombEntity extends PhysicalEntity {
         }
     }
 
-    @Override public void doLogic() { }
+
 
     @Override
     public void collidedWith(Entity other) {
@@ -119,6 +119,11 @@ public class BombEntity extends PhysicalEntity {
             return;
         }
         // EXPLODING 중에는 충돌 없음
+    }
+
+    @Override
+    public void doLogic() {
+        //no-op
     }
 
     @Override
